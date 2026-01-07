@@ -3,6 +3,12 @@ npm install
 npm run dev
 ```
 
+Vite dev server runs SSR on `http://localhost:5173`.
+
+```txt
+npm run build
+```
+
 ```txt
 npm run deploy
 ```
@@ -17,5 +23,6 @@ Pass the `CloudflareBindings` as generics when instantiation `Hono`:
 
 ```ts
 // src/index.ts
-const app = new Hono<{ Bindings: CloudflareBindings }>()
+type Bindings = CloudflareBindings & { ROOM: DurableObjectNamespace }
+const app = new Hono<{ Bindings: Bindings }>()
 ```

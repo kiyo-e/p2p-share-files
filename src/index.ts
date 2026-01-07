@@ -1,9 +1,50 @@
 import { Hono } from "hono";
+import { Room } from "./room";
+import { renderPage } from "./ui";
 
-const app = new Hono<{ Bindings: CloudflareBindings }>();
+type Bindings = CloudflareBindings & {
+  ROOM: DurableObjectNamespace;
+};
 
-app.get("/message", (c) => {
-  return c.text("Hello Hono!");
+const app = new Hono<{ Bindings: Bindings }>();
+
+app.get("/", (c) => {
+  return c.html(renderPage({}));
 });
 
+app.get("/r/:roomId", (c) => {
+  return c.html(renderPage({ roomId: c.req.param("roomId") }));
+});
+
+app.post("/api/rooms", (c) => {
+  const roomId = generateRoomId(10);
+  return c.json({ roomId });
+});
+
+app.get("/ws/:roomId", (c) => {
+  const upgrade = c.req.header("Upgrade");
+  if (!upgrade || upgrade.toLowerCase() !== "websocket") {
+    return c.text("Expected Upgrade: websocket", 426);
+  }
+
+  const roomId = c.req.param("roomId");
+  const id = c.env.ROOM.idFromName(roomId);
+  const stub = c.env.ROOM.get(id);
+  return stub.fetch(c.req.raw);
+});
+
+app.get("*", (c) => {
+  return c.env.ASSETS.fetch(c.req.raw);
+});
+
+export { Room };
 export default app;
+
+function generateRoomId(len: number) {
+  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  const bytes = new Uint8Array(len);
+  crypto.getRandomValues(bytes);
+  let out = "";
+  for (let i = 0; i < len; i++) out += alphabet[bytes[i] % alphabet.length];
+  return out;
+}
