@@ -1,6 +1,7 @@
 import { Hono } from "hono";
+import { jsxRenderer } from "hono/jsx-renderer";
 import { Room } from "./room";
-import { renderPage } from "./ui";
+import { RoomPage, TopPage } from "./ui";
 
 type Bindings = CloudflareBindings & {
   ROOM: DurableObjectNamespace;
@@ -8,12 +9,14 @@ type Bindings = CloudflareBindings & {
 
 const app = new Hono<{ Bindings: Bindings }>();
 
+app.use("*", jsxRenderer());
+
 app.get("/", (c) => {
-  return c.html(renderPage({}));
+  return c.render(TopPage({}));
 });
 
 app.get("/r/:roomId", (c) => {
-  return c.html(renderPage({ roomId: c.req.param("roomId") }));
+  return c.render(RoomPage({ roomId: c.req.param("roomId") }));
 });
 
 app.post("/api/rooms", (c) => {

@@ -8,6 +8,11 @@ type ServerToClient =
   | { type: "peer-left" }
   | { type: "room-full" };
 
+type SocketAttachment = {
+  cid: string;
+  role: Role;
+};
+
 function toText(message: ArrayBuffer | string) {
   return typeof message === "string" ? message : new TextDecoder().decode(message);
 }
@@ -40,8 +45,12 @@ export class Room extends DurableObjectBase {
       return new Response("Expected GET", { status: 400 });
     }
 
-    const existing = this.ctx.getWebSockets().length;
-    if (existing >= 2) {
+    const url = new URL(request.url);
+    const clientId = url.searchParams.get("cid") ?? crypto.randomUUID();
+
+    this.closeDuplicateClient(clientId);
+    const role = this.pickRole(clientId);
+    if (!role) {
       return new Response("Room is full", { status: 409 });
     }
 
@@ -49,8 +58,8 @@ export class Room extends DurableObjectBase {
     const [client, server] = Object.values(pair);
 
     this.ctx.acceptWebSocket(server);
+    server.serializeAttachment({ cid: clientId, role } satisfies SocketAttachment);
 
-    const role: Role = existing === 0 ? "offerer" : "answerer";
     server.send(
       JSON.stringify({ type: "role", role } satisfies ServerToClient)
     );
@@ -84,5 +93,32 @@ export class Room extends DurableObjectBase {
     const count = this.ctx.getWebSockets().length;
     const payload = JSON.stringify({ type: "peers", count } satisfies ServerToClient);
     for (const socket of this.ctx.getWebSockets()) socket.send(payload);
+  }
+
+  private pickRole(clientId: string) {
+    const roles = this.activeRoles(clientId);
+    if (!roles.has("offerer")) return "offerer";
+    if (!roles.has("answerer")) return "answerer";
+    return null;
+  }
+
+  private activeRoles(excludeCid?: string) {
+    const roles = new Set<Role>();
+    for (const socket of this.ctx.getWebSockets()) {
+      const attachment = socket.deserializeAttachment() as SocketAttachment | null;
+      if (!attachment?.role) continue;
+      if (excludeCid && attachment.cid === excludeCid) continue;
+      roles.add(attachment.role);
+    }
+    return roles;
+  }
+
+  private closeDuplicateClient(clientId: string) {
+    for (const socket of this.ctx.getWebSockets()) {
+      const attachment = socket.deserializeAttachment() as SocketAttachment | null;
+      if (attachment?.cid === clientId) {
+        socket.close(1000, "replaced");
+      }
+    }
   }
 }

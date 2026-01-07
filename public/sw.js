@@ -1,5 +1,5 @@
 const CACHE = "share-files-v1";
-const ASSETS = ["/", "/style.css", "/app.js", "/manifest.webmanifest"];
+const ASSETS = ["/", "/style.css", "/manifest.webmanifest", "/assets/home.js", "/assets/room.js"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(ASSETS)));

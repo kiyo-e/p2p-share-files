@@ -1,12 +1,40 @@
-const $ = (id) => document.getElementById(id);
+type RoomRole = "offerer" | "answerer" | null;
 
-const homeView = $("homeView");
-const roomView = $("roomView");
+type RoomMessage =
+  | { type: "role"; role: "offerer" | "answerer" }
+  | { type: "peers"; count: number }
+  | { type: "peer-left" }
+  | { type: "offer"; sdp: RTCSessionDescriptionInit }
+  | { type: "answer"; sdp: RTCSessionDescriptionInit }
+  | { type: "candidate"; candidate: RTCIceCandidateInit };
 
-const encryptToggle = $("encryptToggle");
-const createBtn = $("createBtn");
-const joinCode = $("joinCode");
-const joinBtn = $("joinBtn");
+type IncomingMeta = {
+  type: "meta";
+  name: string;
+  size: number;
+  mime: string;
+  encrypted: boolean;
+};
+
+type DoneMessage = { type: "done" };
+
+type DataMessage = IncomingMeta | DoneMessage;
+
+type OutgoingMeta = IncomingMeta;
+
+type PendingCandidate = RTCIceCandidateInit;
+
+type Nullable<T> = T | null;
+
+type AnyWebSocket = WebSocket;
+
+type DataChannel = RTCDataChannel;
+
+type BufferLike = ArrayBuffer | Blob;
+
+type RoomCryptoKey = CryptoKey | null;
+
+const $ = (id: string) => document.getElementById(id);
 
 const roomIdLabel = $("roomIdLabel");
 const statusEl = $("status");
@@ -14,13 +42,14 @@ const roleLabel = $("roleLabel");
 const peersLabel = $("peersLabel");
 const copyLinkBtn = $("copyLinkBtn");
 const copyCodeBtn = $("copyCodeBtn");
+const clientId = getClientId();
 
 const senderPane = $("senderPane");
 const receiverPane = $("receiverPane");
 
 const drop = $("drop");
-const fileInput = $("fileInput");
-const sendBtn = $("sendBtn");
+const fileInput = $("fileInput") as HTMLInputElement | null;
+const sendBtn = $("sendBtn") as HTMLButtonElement | null;
 const fileInfo = $("fileInfo");
 const sendBar = $("sendBar");
 const sendText = $("sendText");
@@ -28,97 +57,64 @@ const sendText = $("sendText");
 const recvBar = $("recvBar");
 const recvText = $("recvText");
 const downloadArea = $("downloadArea");
-const downloadLink = $("downloadLink");
+const downloadLink = $("downloadLink") as HTMLAnchorElement | null;
 const downloadMeta = $("downloadMeta");
 
-/** ---------- routing ---------- */
-const route = parseRoute();
-if (route.page === "home") showHome();
-else showRoom(route.roomId);
+const roomId = document.body.dataset.roomId;
 
-createBtn.onclick = async () => {
-  setHomeBusy(true);
-  try {
-    const { roomId } = await apiCreateRoom();
-    const useEncrypt = encryptToggle.checked;
-    if (useEncrypt) {
-      const rawKey = crypto.getRandomValues(new Uint8Array(32));
-      const k = b64urlEncode(rawKey);
-      navigate(`/r/${roomId}#k=${k}`);
-    } else {
-      navigate(`/r/${roomId}`);
-    }
-  } finally {
-    setHomeBusy(false);
-  }
-};
-
-joinBtn.onclick = () => {
-  const code = joinCode.value.trim().toUpperCase();
-  if (!code) return;
-  navigate(`/r/${code}${location.hash || ""}`);
-};
-
-function showHome() {
-  homeView.classList.remove("hidden");
-  roomView.classList.add("hidden");
-}
-
-function showRoom(roomId) {
-  homeView.classList.add("hidden");
-  roomView.classList.remove("hidden");
+if (
+  roomId &&
+  roomIdLabel &&
+  statusEl &&
+  roleLabel &&
+  peersLabel &&
+  copyLinkBtn &&
+  copyCodeBtn &&
+  senderPane &&
+  receiverPane &&
+  drop &&
+  fileInput &&
+  sendBtn &&
+  fileInfo &&
+  sendBar &&
+  sendText &&
+  recvBar &&
+  recvText &&
+  downloadArea &&
+  downloadLink &&
+  downloadMeta
+) {
   bootRoom(roomId).catch((e) => {
     setStatus(`エラー: ${String(e?.message || e)}`);
   });
 }
 
-function parseRoute() {
-  const parts = location.pathname.split("/").filter(Boolean);
-  if (parts.length >= 2 && parts[0] === "r") return { page: "room", roomId: parts[1] };
-  return { page: "home" };
-}
-
-function navigate(path) {
-  history.pushState({}, "", path);
-  const r = parseRoute();
-  if (r.page === "home") showHome();
-  else showRoom(r.roomId);
-}
-
-window.onpopstate = () => {
-  const r = parseRoute();
-  if (r.page === "home") showHome();
-  else showRoom(r.roomId);
-};
-
-/** ---------- room logic ---------- */
-async function bootRoom(roomId) {
-  roomIdLabel.textContent = roomId;
-  copyLinkBtn.onclick = () => copyText(location.href);
-  copyCodeBtn.onclick = () => copyText(roomId);
+async function bootRoom(roomId: string) {
+  roomIdLabel!.textContent = roomId;
+  copyLinkBtn!.onclick = () => copyText(location.href);
+  copyCodeBtn!.onclick = () => copyText(roomId);
 
   setStatus("シグナリング接続中...");
-  const ws = await connectSignaling(roomId);
+  const ws = await connectSignaling(roomId, clientId);
 
-  /** @type {"offerer"|"answerer"|null} */
-  let role = null;
+  let role: RoomRole = null;
   let peers = 0;
 
   const pc = new RTCPeerConnection({
     iceServers: [{ urls: "stun:stun.cloudflare.com:3478" }],
   });
 
-  let dc = null;
+  let dc: Nullable<DataChannel> = null;
   let remoteDescSet = false;
-  const pendingCandidates = [];
+  const pendingCandidates: PendingCandidate[] = [];
   let offerInFlight = false;
 
   const keyParam = new URLSearchParams(location.hash.slice(1)).get("k");
   const cryptoKey = keyParam ? await importAesKey(b64urlDecode(keyParam)) : null;
 
-  let selectedFile = null;
-  let incomingMeta = null;
-  let recvChunks = [];
+  let selectedFile: Nullable<File> = null;
+  let incomingMeta: IncomingMeta | null = null;
+  let recvChunks: Uint8Array[] = [];
   let recvBytes = 0;
 
   pc.onicecandidate = (ev) => {
@@ -168,20 +164,20 @@ async function bootRoom(roomId) {
   }
 
   ws.onmessage = async (ev) => {
-    const msg = safeJson(ev.data);
+    const msg = safeJson(ev.data) as RoomMessage | null;
     if (!msg) return;
     console.info("[ws] message:", msg.type);
 
     if (msg.type === "role") {
       role = msg.role;
-      roleLabel.textContent = role === "offerer" ? "送信側（offerer）" : "受信側（answerer）";
+      roleLabel!.textContent = role === "offerer" ? "送信側（offerer）" : "受信側（answerer）";
       if (role === "offerer") {
-        senderPane.classList.remove("hidden");
-        receiverPane.classList.add("hidden");
+        senderPane!.classList.remove("hidden");
+        receiverPane!.classList.add("hidden");
         setupSenderUI();
       } else {
-        receiverPane.classList.remove("hidden");
-        senderPane.classList.add("hidden");
+        receiverPane!.classList.remove("hidden");
+        senderPane!.classList.add("hidden");
       }
       if (role === "offerer") {
         dc = pc.createDataChannel("file", { ordered: true });
@@ -192,19 +188,19 @@ async function bootRoom(roomId) {
 
     if (msg.type === "peers") {
       peers = msg.count;
-      peersLabel.textContent = String(peers);
+      peersLabel!.textContent = String(peers);
       if (peers < 2) setStatus("相手の参加待ち...");
       else if (pc.connectionState !== "connected") setStatus("P2P確立中...");
       ensureOffer();
       if (role === "offerer") {
-        sendBtn.disabled = !(selectedFile && dc && dc.readyState === "open" && peers >= 2);
+        sendBtn!.disabled = !(selectedFile && dc && dc.readyState === "open" && peers >= 2);
       }
       return;
     }
 
     if (msg.type === "peer-left") {
       setStatus("相手が退出しました");
-      sendBtn.disabled = true;
+      sendBtn!.disabled = true;
       return;
     }
 
@@ -235,12 +231,12 @@ async function bootRoom(roomId) {
   ws.onclose = () => setStatus("シグナリング切断");
   ws.onerror = () => console.warn("[ws] error");
 
-  function wireDataChannel(ch) {
+  function wireDataChannel(ch: DataChannel) {
     ch.binaryType = "arraybuffer";
     ch.onopen = () => {
       console.info("[rtc] datachannel open");
       setStatus("データチャネル準備完了");
-      if (role === "offerer") sendBtn.disabled = !selectedFile || peers < 2;
+      if (role === "offerer") sendBtn!.disabled = !selectedFile || peers < 2;
     };
     ch.onclose = () => {
       console.info("[rtc] datachannel close");
@@ -253,7 +249,7 @@ async function bootRoom(roomId) {
 
     ch.onmessage = async (ev) => {
       if (typeof ev.data === "string") {
-        const m = safeJson(ev.data);
+        const m = safeJson(ev.data) as DataMessage | null;
         if (!m) return;
 
         if (m.type === "meta") {
@@ -276,7 +272,7 @@ async function bootRoom(roomId) {
       }
 
       if (!incomingMeta) return;
-      const ab = await toArrayBuffer(ev.data);
+      const ab = await toArrayBuffer(ev.data as BufferLike);
 
       let plain = ab;
       if (incomingMeta.encrypted) {
@@ -296,69 +292,69 @@ async function bootRoom(roomId) {
   }
 
   function setupSenderUI() {
-    drop.ondragover = (e) => {
+    drop!.ondragover = (e) => {
       e.preventDefault();
-      drop.classList.add("hover");
+      drop!.classList.add("hover");
     };
-    drop.ondragleave = () => drop.classList.remove("hover");
-    drop.ondrop = (e) => {
+    drop!.ondragleave = () => drop!.classList.remove("hover");
+    drop!.ondrop = (e) => {
       e.preventDefault();
-      drop.classList.remove("hover");
+      drop!.classList.remove("hover");
       const f = e.dataTransfer?.files?.[0];
       if (f) pickFile(f);
     };
-    fileInput.onchange = () => {
-      const f = fileInput.files?.[0];
+    fileInput!.onchange = () => {
+      const f = fileInput!.files?.[0];
       if (f) pickFile(f);
     };
 
-    sendBtn.onclick = async () => {
+    sendBtn!.onclick = async () => {
       if (!dc || dc.readyState !== "open" || !selectedFile) return;
       if (peers < 2) return;
       await sendFile(selectedFile);
     };
   }
 
-  function pickFile(f) {
+  function pickFile(f: File) {
     selectedFile = f;
-    fileInfo.textContent = `${f.name} (${formatBytes(f.size)})`;
-    sendBtn.disabled = !(dc && dc.readyState === "open" && peers >= 2);
+    fileInfo!.textContent = `${f.name} (${formatBytes(f.size)})`;
+    sendBtn!.disabled = !(dc && dc.readyState === "open" && peers >= 2);
   }
 
-  async function sendFile(file) {
+  async function sendFile(file: File) {
     const encrypted = !!cryptoKey;
-    const meta = {
+    const meta: OutgoingMeta = {
       type: "meta",
       name: file.name,
       size: file.size,
       mime: file.type || "application/octet-stream",
       encrypted,
     };
-    dc.send(JSON.stringify(meta));
+    dc!.send(JSON.stringify(meta));
 
     setStatus("送信中...");
     setSendProgress(0, file.size);
 
     let sent = 0;
 
-    dc.bufferedAmountLowThreshold = 4 * 1024 * 1024;
+    dc!.bufferedAmountLowThreshold = 4 * 1024 * 1024;
     const waitDrain = () =>
-      new Promise((resolve) => {
-        if (dc.bufferedAmount <= dc.bufferedAmountLowThreshold) return resolve();
-        dc.onbufferedamountlow = () => {
-          dc.onbufferedamountlow = null;
+      new Promise<void>((resolve) => {
+        if (dc!.bufferedAmount <= dc!.bufferedAmountLowThreshold) return resolve();
+        dc!.onbufferedamountlow = () => {
+          dc!.onbufferedamountlow = null;
           resolve();
         };
       });
 
-    const sendChunk = async (value) => {
+    const sendChunk = async (value: Uint8Array) => {
       const chunk = value.buffer.slice(value.byteOffset, value.byteOffset + value.byteLength);
-      let payload = chunk;
+      let payload: ArrayBuffer = chunk;
       if (encrypted) payload = await encryptChunk(chunk, cryptoKey);
-      dc.send(payload);
+      dc!.send(payload);
       sent += value.byteLength;
       setSendProgress(sent, file.size);
-      if (dc.bufferedAmount > 8 * 1024 * 1024) await waitDrain();
+      if (dc!.bufferedAmount > 8 * 1024 * 1024) await waitDrain();
     };
 
     const chunkSize = 16 * 1024;
@@ -372,7 +368,7 @@ async function bootRoom(roomId) {
       offset += value.byteLength;
     }
 
-    dc.send(JSON.stringify({ type: "done" }));
+    dc!.send(JSON.stringify({ type: "done" } satisfies DoneMessage));
     setStatus("送信完了");
   }
 
@@ -383,34 +379,36 @@ async function bootRoom(roomId) {
     const blob = new Blob(recvChunks, { type: incomingMeta.mime });
     const url = URL.createObjectURL(blob);
 
-    downloadLink.href = url;
-    downloadLink.download = incomingMeta.name;
-    downloadMeta.textContent = `${incomingMeta.name} (${formatBytes(incomingMeta.size)})`;
+    downloadLink!.href = url;
+    downloadLink!.download = incomingMeta.name;
+    downloadMeta!.textContent = `${incomingMeta.name} (${formatBytes(incomingMeta.size)})`;
 
-    downloadArea.classList.remove("hidden");
+    downloadArea!.classList.remove("hidden");
     setStatus("受信完了");
   }
 }
 
 /** ---------- signaling ---------- */
-function wsUrl(path) {
+function wsUrl(path: string) {
   const proto = location.protocol === "https:" ? "wss:" : "ws:";
   return `${proto}//${location.host}${path}`;
 }
 
-function connectSignaling(roomId) {
-  return new Promise((resolve, reject) => {
-    const ws = new WebSocket(wsUrl(`/ws/${roomId}`));
+function connectSignaling(roomId: string, clientId: string) {
+  return new Promise<AnyWebSocket>((resolve, reject) => {
+    const url = new URL(wsUrl(`/ws/${roomId}`));
+    url.searchParams.set("cid", clientId);
+    const ws = new WebSocket(url.toString());
     ws.onopen = () => resolve(ws);
     ws.onerror = () => reject(new Error("WebSocket接続に失敗しました"));
   });
 }
 
-function sendWS(ws, obj) {
+function sendWS(ws: AnyWebSocket, obj: RoomMessage) {
   ws.send(JSON.stringify(obj));
 }
 
-function safeJson(text) {
+function safeJson(text: string) {
   try {
     return JSON.parse(text);
   } catch {
@@ -419,29 +417,23 @@ function safeJson(text) {
 }
 
 /** ---------- UI helpers ---------- */
-function setStatus(text) {
-  statusEl.textContent = text;
+function setStatus(text: string) {
+  statusEl!.textContent = text;
 }
 
-function setHomeBusy(b) {
-  createBtn.disabled = b;
-  joinBtn.disabled = b;
-  encryptToggle.disabled = b;
-}
-
-function setSendProgress(sent, total) {
+function setSendProgress(sent: number, total: number) {
   const pct = total ? Math.floor((sent / total) * 100) : 0;
-  sendBar.style.width = `${pct}%`;
-  sendText.textContent = `${pct}% (${formatBytes(sent)} / ${formatBytes(total)})`;
+  sendBar!.style.width = `${pct}%`;
+  sendText!.textContent = `${pct}% (${formatBytes(sent)} / ${formatBytes(total)})`;
 }
 
-function setRecvProgress(got, total) {
+function setRecvProgress(got: number, total: number) {
   const pct = total ? Math.floor((got / total) * 100) : 0;
-  recvBar.style.width = `${pct}%`;
-  recvText.textContent = `${pct}% (${formatBytes(got)} / ${formatBytes(total)})`;
+  recvBar!.style.width = `${pct}%`;
+  recvText!.textContent = `${pct}% (${formatBytes(got)} / ${formatBytes(total)})`;
 }
 
-async function copyText(s) {
+async function copyText(s: string) {
   try {
     await navigator.clipboard.writeText(s);
   } catch {
@@ -454,7 +446,7 @@ async function copyText(s) {
   }
 }
 
-function formatBytes(n) {
+function formatBytes(n: number) {
   const u = ["B", "KB", "MB", "GB"];
   let i = 0;
   let x = n;
@@ -465,27 +457,30 @@ function formatBytes(n) {
   return `${x.toFixed(i === 0 ? 0 : 1)} ${u[i]}`;
 }
 
-async function apiCreateRoom() {
-  const res = await fetch("/api/rooms", { method: "POST" });
-  if (!res.ok) throw new Error("ルーム作成に失敗しました");
-  return res.json();
+function getClientId() {
+  const key = "share-files-client-id";
+  const stored = localStorage.getItem(key);
+  if (stored) return stored;
+  const id = crypto.randomUUID();
+  localStorage.setItem(key, id);
+  return id;
 }
 
-async function toArrayBuffer(data) {
+async function toArrayBuffer(data: BufferLike) {
   if (data instanceof ArrayBuffer) return data;
-  if (data instanceof Blob) return data.arrayBuffer();
-  return new Response(data).arrayBuffer();
+  return data.arrayBuffer();
 }
 
 /** ---------- crypto (optional E2E) ---------- */
-async function importAesKey(raw) {
+async function importAesKey(raw: Uint8Array) {
   return crypto.subtle.importKey("raw", raw, { name: "AES-GCM" }, false, [
     "encrypt",
     "decrypt",
   ]);
 }
 
-async function encryptChunk(plainAb, key) {
+async function encryptChunk(plainAb: ArrayBuffer, key: RoomCryptoKey) {
+  if (!key) return plainAb;
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const ct = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, plainAb);
   const out = new Uint8Array(12 + ct.byteLength);
@@ -494,7 +489,8 @@ async function encryptChunk(plainAb, key) {
   return out.buffer;
 }
 
-async function decryptChunk(frameAb, key) {
+async function decryptChunk(frameAb: ArrayBuffer, key: RoomCryptoKey) {
+  if (!key) return frameAb;
   const u8 = new Uint8Array(frameAb);
   const iv = u8.slice(0, 12);
   const ct = u8.slice(12);
@@ -502,13 +498,7 @@ async function decryptChunk(frameAb, key) {
   return pt;
 }
 
-function b64urlEncode(u8) {
-  let s = "";
-  for (let i = 0; i < u8.length; i++) s += String.fromCharCode(u8[i]);
-  return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
-}
-
-function b64urlDecode(s) {
+function b64urlDecode(s: string) {
   const pad = "=".repeat((4 - (s.length % 4)) % 4);
   const b64 = (s + pad).replace(/-/g, "+").replace(/_/g, "/");
   const bin = atob(b64);
