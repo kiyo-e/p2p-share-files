@@ -78,6 +78,39 @@ body {
   padding: 6px 12px;
 }
 
+.langSwitcher {
+  display: flex;
+  gap: 0;
+  margin-left: auto;
+}
+
+.langBtn {
+  padding: 8px 12px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-decoration: none;
+  color: var(--gray);
+  border: 2px solid var(--black);
+  border-left: none;
+  background: var(--white);
+  transition: all 0.1s ease;
+}
+
+.langBtn:first-child {
+  border-left: 2px solid var(--black);
+}
+
+.langBtn:hover {
+  background: var(--black);
+  color: var(--white);
+}
+
+.langBtn.active {
+  background: var(--black);
+  color: var(--white);
+}
+
 .container {
   max-width: 1200px;
   margin: 0 auto;

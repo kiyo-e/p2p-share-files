@@ -5,8 +5,10 @@
  */
 
 import { render, useCallback, useState } from "hono/jsx/dom";
+import { getT } from "../i18n/client";
 
 const creatorCid = getClientId();
+const t = getT();
 
 const root = document.querySelector("main.container");
 if (root && document.getElementById("homeView")) {
@@ -64,13 +66,9 @@ function HomeApp() {
     <section id="homeView" class="card home">
       <div class="homeGrid">
         <div class="homeHero">
-          <div class="eyebrow">DIRECT—PRIVATE—INSTANT</div>
-          <h1>
-            ファイルを<br />直接送る
-          </h1>
-          <p class="lead">
-            サーバにアップロードせず、端末間で直接転送。接続の取り次ぎだけサーバを使います。
-          </p>
+          <div class="eyebrow">{t.home.eyebrow}</div>
+          <h1 dangerouslySetInnerHTML={{ __html: t.home.heroTitle }} />
+          <p class="lead">{t.home.heroLead}</p>
           <div class="heroChips">
             <span class="chip">NO SERVER STORAGE</span>
             <span class="chip">1:N P2P</span>
@@ -78,20 +76,20 @@ function HomeApp() {
           </div>
           <div class="steps">
             <div class="step">
-              <span>1</span> ルーム作成
+              <span>1</span> {t.home.step1}
             </div>
             <div class="step">
-              <span>2</span> リンク共有
+              <span>2</span> {t.home.step2}
             </div>
             <div class="step">
-              <span>3</span> 送信
+              <span>3</span> {t.home.step3}
             </div>
           </div>
         </div>
 
         <div class="homePanel">
           <div class="panelBlock">
-            <div class="panelTitle">送信を開始</div>
+            <div class="panelTitle">{t.home.sendTitle}</div>
             <label class="toggle">
               <input
                 id="encryptToggle"
@@ -100,10 +98,10 @@ function HomeApp() {
                 disabled={busy}
                 onInput={handleEncryptToggle}
               />
-              <span>E2E暗号化ON</span>
+              <span>{t.home.encryptOn}</span>
             </label>
             <label class="row gap">
-              <span class="muted small">同時送信上限</span>
+              <span class="muted small">{t.home.maxConcurrent}</span>
               <input
                 id="maxConcurrent"
                 class="input"
@@ -116,33 +114,33 @@ function HomeApp() {
               />
             </label>
             <button id="createBtn" class="btn primary" disabled={busy} onClick={handleCreate}>
-              ルーム作成
+              {t.home.createRoom}
             </button>
           </div>
 
           <hr class="sep" />
 
           <div class="panelBlock">
-            <div class="panelTitle">受信に参加</div>
+            <div class="panelTitle">{t.home.receiveTitle}</div>
             <div class="row gap wrap">
               <input
                 id="joinCode"
                 class="input"
-                placeholder="コード入力（例: ABCD...）"
+                placeholder={t.home.codePlaceholder}
                 value={joinCode}
                 disabled={busy}
                 onInput={handleJoinInput}
               />
               <button id="joinBtn" class="btn" disabled={busy} onClick={handleJoin}>
-                参加
+                {t.home.join}
               </button>
             </div>
-            <p class="muted small">暗号化ONならリンクに鍵が含まれます。</p>
+            <p class="muted small">{t.home.encryptHint}</p>
           </div>
         </div>
       </div>
 
-      <div class="foot muted">P2Pのみ。ネットワーク条件によっては接続不可</div>
+      <div class="foot muted">{t.home.footer}</div>
     </section>
   );
 }
@@ -153,7 +151,7 @@ async function apiCreateRoom(body: { maxConcurrent: number; creatorCid: string }
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
   });
-  if (!res.ok) throw new Error("ルーム作成に失敗しました");
+  if (!res.ok) throw new Error(t.error.roomCreationFailed);
   return res.json();
 }
 

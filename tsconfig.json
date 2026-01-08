@@ -5,6 +5,7 @@
     "moduleResolution": "Bundler",
     "strict": true,
     "skipLibCheck": true,
+    "resolveJsonModule": true,
     "lib": [
       "ESNext"
     ],
@@ -13,5 +14,5 @@
     "types": [
         "./worker-configuration.d.ts"
     ]
-  },
+  }
 }

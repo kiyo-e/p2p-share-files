@@ -1,0 +1,69 @@
+{
+  "lang": "en",
+  "langName": "English",
+  "title": "SHARE-FILES",
+  "header": {
+    "brand": "SHARE—FILES",
+    "sub": "P2P / 1:1 / WEBRTC"
+  },
+  "home": {
+    "eyebrow": "DIRECT—PRIVATE—INSTANT",
+    "heroTitle": "Send files<br />directly",
+    "heroLead": "Transfer directly between devices without uploading to a server. Only signaling goes through the server.",
+    "step1": "Create room",
+    "step2": "Share link",
+    "step3": "Send",
+    "sendTitle": "Start sending",
+    "encryptOn": "E2E encryption ON",
+    "maxConcurrent": "Max concurrent",
+    "createRoom": "Create room",
+    "receiveTitle": "Join to receive",
+    "codePlaceholder": "Enter code (e.g. ABCD...)",
+    "join": "Join",
+    "encryptHint": "With encryption ON, the key is included in the link.",
+    "footer": "P2P only. Connection may fail depending on network conditions"
+  },
+  "room": {
+    "eyebrow": "ROOM—SESSION",
+    "roomLabel": "ROOM",
+    "copyLink": "LINK",
+    "copyCode": "CODE",
+    "roleLabel": "ROLE",
+    "peersLabel": "PEERS",
+    "encryptHint": "With encryption ON, the decryption key is in the \"#\" part of the link (not sent to server).",
+    "dropTitle": "DROP FILE HERE",
+    "dropOr": "or",
+    "select": "SELECT",
+    "send": "SEND",
+    "waiting": "Waiting for sender to select a file...",
+    "download": "DOWNLOAD"
+  },
+  "status": {
+    "initializing": "Initializing...",
+    "connecting": "Connecting to signaling...",
+    "waitingSender": "Waiting as sender...",
+    "waitingReceiver": "Waiting as receiver...",
+    "dataChannelReady": "Data channel ready",
+    "dataChannelClosed": "Data channel closed",
+    "dataChannelError": "Data channel error",
+    "generatingFile": "Generating file...",
+    "receiveComplete": "Receive complete",
+    "sending": "Sending...",
+    "sendComplete": "Send complete",
+    "queued": "Queued...",
+    "preparing": "Preparing connection...",
+    "missingKey": "Encryption key not found (#k=... required)",
+    "receiving": "Receiving: {name}",
+    "disconnected": "Signaling disconnected"
+  },
+  "role": {
+    "offerer": "Sender (offerer)",
+    "answerer": "Receiver (answerer)",
+    "unknown": "—"
+  },
+  "error": {
+    "roomCreationFailed": "Failed to create room",
+    "wsConnectionFailed": "WebSocket connection failed",
+    "generic": "Error: {message}"
+  }
+}

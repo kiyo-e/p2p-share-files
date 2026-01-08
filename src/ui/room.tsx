@@ -5,57 +5,60 @@
 
 import { Script } from "vite-ssr-components/hono";
 import { Layout } from "./layout";
+import type { Translations, Locale } from "../i18n";
 
 type RoomPageProps = {
   roomId: string;
+  t: Translations;
+  locale: Locale;
 };
 
-export function RoomPage({ roomId }: RoomPageProps) {
+export function RoomPage({ roomId, t, locale }: RoomPageProps) {
   return (
     <Layout
-      title="SHARE-FILES"
+      title={t.title}
       scripts={<Script src="/src/client/room.tsx" />}
       bodyAttrs={{ "data-room-id": roomId }}
+      t={t}
+      locale={locale}
     >
       <section id="roomView" class="card room">
         <div class="roomHeader">
           <div class="roomTitle">
-            <div class="eyebrow">ROOM—SESSION</div>
-            <h2>ROOM <span id="roomIdLabel" class="mono">{roomId}</span></h2>
-            <div id="status" class="status">初期化中...</div>
+            <div class="eyebrow">{t.room.eyebrow}</div>
+            <h2>{t.room.roomLabel} <span id="roomIdLabel" class="mono">{roomId}</span></h2>
+            <div id="status" class="status">{t.status.initializing}</div>
           </div>
           <div class="right">
-            <button id="copyLinkBtn" class="btn">LINK</button>
-            <button id="copyCodeBtn" class="btn">CODE</button>
+            <button id="copyLinkBtn" class="btn">{t.room.copyLink}</button>
+            <button id="copyCodeBtn" class="btn">{t.room.copyCode}</button>
           </div>
         </div>
 
         <div class="roomGrid">
           <div class="roomSide">
             <div class="kv">
-              <div class="k">ROLE</div>
-              <div class="v" id="roleLabel">—</div>
-              <div class="k">PEERS</div>
+              <div class="k">{t.room.roleLabel}</div>
+              <div class="v" id="roleLabel">{t.role.unknown}</div>
+              <div class="k">{t.room.peersLabel}</div>
               <div class="v" id="peersLabel">0</div>
             </div>
-            <div class="sideCard muted small">
-              暗号化ONの場合、リンクの「#」以降に復号鍵が含まれます（サーバには送られません）。
-            </div>
+            <div class="sideCard muted small">{t.room.encryptHint}</div>
           </div>
 
           <div class="roomMain">
             <div id="senderPane" class="pane hidden">
               <div id="drop" class="drop">
-                <div class="dropTitle">DROP FILE HERE</div>
-                <div class="muted small">または</div>
+                <div class="dropTitle">{t.room.dropTitle}</div>
+                <div class="muted small">{t.room.dropOr}</div>
                 <label class="btn">
-                  SELECT
+                  {t.room.select}
                   <input id="fileInput" type="file" hidden />
                 </label>
               </div>
 
               <div class="row gap wrap">
-                <button id="sendBtn" class="btn primary" disabled>SEND</button>
+                <button id="sendBtn" class="btn primary" disabled>{t.room.send}</button>
                 <div class="muted small" id="fileInfo"></div>
               </div>
 
@@ -66,7 +69,7 @@ export function RoomPage({ roomId }: RoomPageProps) {
             </div>
 
             <div id="receiverPane" class="pane hidden">
-              <div class="muted">送信側がファイルを選ぶのを待っています...</div>
+              <div class="muted">{t.room.waiting}</div>
 
               <div class="progress">
                 <div class="bar"><div id="recvBar" class="fill" style="width: 0%"></div></div>
@@ -74,7 +77,7 @@ export function RoomPage({ roomId }: RoomPageProps) {
               </div>
 
               <div id="downloadArea" class="hidden">
-                <a id="downloadLink" class="btn primary" href="#">DOWNLOAD</a>
+                <a id="downloadLink" class="btn primary" href="#">{t.room.download}</a>
                 <div class="muted small" id="downloadMeta"></div>
               </div>
             </div>
