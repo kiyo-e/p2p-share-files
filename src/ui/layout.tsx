@@ -10,8 +10,6 @@ type LayoutProps = {
   bodyAttrs?: Record<string, string>;
 };
 
-const swScript = "if (\"serviceWorker\" in navigator) navigator.serviceWorker.register(\"/sw.js\");";
-
 export function Layout({ title, scriptSrc, children, bodyAttrs = {} }: LayoutProps) {
   return (
     <html lang="ja">
@@ -20,7 +18,6 @@ export function Layout({ title, scriptSrc, children, bodyAttrs = {} }: LayoutPro
         <meta name="viewport" content="width=device-width,initial-scale=1" />
         <meta name="theme-color" content="#f5f5f0" />
         <title>{title}</title>
-        <link rel="manifest" href="/manifest.webmanifest" />
         <link rel="stylesheet" href="/style.css" />
       </head>
       <body {...bodyAttrs}>
@@ -32,11 +29,6 @@ export function Layout({ title, scriptSrc, children, bodyAttrs = {} }: LayoutPro
         <main class="container">{children}</main>
 
         <script type="module" src={scriptSrc}></script>
-        <script
-          dangerouslySetInnerHTML={{
-            __html: swScript,
-          }}
-        />
       </body>
     </html>
   );
