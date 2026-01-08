@@ -3,6 +3,7 @@
  * See README.md for the flow; pairs with the Room Durable Object and room script.
  */
 
+import { Script } from "vite-ssr-components/hono";
 import { Layout } from "./layout";
 
 type RoomPageProps = {
@@ -13,7 +14,7 @@ export function RoomPage({ roomId }: RoomPageProps) {
   return (
     <Layout
       title="SHARE-FILES"
-      scriptSrc="/assets/room.js"
+      scripts={<Script src="/src/client/room.tsx" />}
       bodyAttrs={{ "data-room-id": roomId }}
     >
       <section id="roomView" class="card room">
