@@ -5,9 +5,13 @@
 
 import { Layout } from "./layout";
 
-export function TopPage() {
+type TopPageProps = {
+  scripts: string[];
+};
+
+export function TopPage({ scripts }: TopPageProps) {
   return (
-    <Layout title="SHARE-FILES" scriptSrc="/assets/home.js">
+    <Layout title="SHARE-FILES" scripts={scripts}>
       <section id="homeView" class="card home">
         <div class="homeGrid">
           <div class="homeHero">

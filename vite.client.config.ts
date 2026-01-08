@@ -1,8 +1,9 @@
 import { defineConfig } from "vite";
 
 export default defineConfig({
+  publicDir: "public",
   build: {
-    outDir: "public/assets",
+    outDir: "dist",
     emptyOutDir: true,
     sourcemap: true,
     rollupOptions: {
@@ -11,8 +12,8 @@ export default defineConfig({
         room: "src/client/room.tsx",
       },
       output: {
-        entryFileNames: "[name].js",
-        chunkFileNames: "chunks/[name]-[hash].js",
+        entryFileNames: "assets/[name].js",
+        chunkFileNames: "assets/chunks/[name]-[hash].js",
         assetFileNames: "assets/[name]-[hash][extname]",
       },
     },

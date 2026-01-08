@@ -2,7 +2,7 @@
 	"name": "share-files",
 	"type": "module",
 	"scripts": {
-		"dev": "npm run build:client && wrangler dev",
+		"dev": "vite dev",
 		"build": "npm run build:client && vite build",
 		"build:client": "vite build -c vite.client.config.ts",
 		"deploy": "npm run build && wrangler deploy --minify",
@@ -13,8 +13,6 @@
 		"hono": "^4.11.3"
 	},
 	"devDependencies": {
-		"@hono/vite-build": "^1.7.0",
-		"@hono/vite-dev-server": "^0.20.1",
 		"vite": "^7.2.0",
 		"wrangler": "^4.58.0"
 	}

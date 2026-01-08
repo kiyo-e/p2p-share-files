@@ -29,6 +29,7 @@ type SocketAttachment = {
 
 type RoomConfig = {
   maxConcurrent: number;
+  creatorCid?: string;
 };
 
 const DEFAULT_MAX_CONCURRENT = 3;
@@ -71,10 +72,11 @@ export class Room extends DurableObjectBase {
       if (request.method !== "POST") {
         return new Response("Expected POST", { status: 400 });
       }
-      const body = (await request.json()) as { maxConcurrent?: number };
+      const body = (await request.json()) as { maxConcurrent?: number; creatorCid?: string };
       const max = Number.isFinite(body.maxConcurrent) ? Math.floor(body.maxConcurrent!) : DEFAULT_MAX_CONCURRENT;
       const maxConcurrent = Math.max(1, max);
-      this.config = { maxConcurrent };
+      const creatorCid = typeof body.creatorCid === "string" ? body.creatorCid : undefined;
+      this.config = { maxConcurrent, creatorCid };
       await this.ctx.storage.put("config", this.config);
       return new Response("OK");
     }
@@ -94,7 +96,7 @@ export class Room extends DurableObjectBase {
     log("[room] new connection, cid:", clientId, "current sockets:", this.ctx.getWebSockets().length);
     this.closeDuplicateClient(clientId);
     log("[room] after closeDuplicate, sockets:", this.ctx.getWebSockets().length);
-    const role = this.pickRole();
+    const role = this.pickRole(clientId);
     log("[room] assigned role:", role, "to cid:", clientId);
 
     const pair = new WebSocketPair();
@@ -201,7 +203,11 @@ export class Room extends DurableObjectBase {
     for (const socket of this.ctx.getWebSockets()) socket.send(payload);
   }
 
-  private pickRole() {
+  private pickRole(clientId: string) {
+    const creatorCid = this.config?.creatorCid;
+    if (creatorCid) {
+      return creatorCid === clientId ? "offerer" : "answerer";
+    }
     const offerer = this.getOffererSocket();
     if (!offerer) return "offerer";
     return "answerer";

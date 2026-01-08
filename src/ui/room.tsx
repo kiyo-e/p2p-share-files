@@ -7,13 +7,14 @@ import { Layout } from "./layout";
 
 type RoomPageProps = {
   roomId: string;
+  scripts: string[];
 };
 
-export function RoomPage({ roomId }: RoomPageProps) {
+export function RoomPage({ roomId, scripts }: RoomPageProps) {
   return (
     <Layout
       title="SHARE-FILES"
-      scriptSrc="/assets/room.js"
+      scripts={scripts}
       bodyAttrs={{ "data-room-id": roomId }}
     >
       <section id="roomView" class="card room">

@@ -5,12 +5,12 @@
 
 type LayoutProps = {
   title: string;
-  scriptSrc: string;
+  scripts: string[];
   children: any;
   bodyAttrs?: Record<string, string>;
 };
 
-export function Layout({ title, scriptSrc, children, bodyAttrs = {} }: LayoutProps) {
+export function Layout({ title, scripts, children, bodyAttrs = {} }: LayoutProps) {
   return (
     <html lang="ja">
       <head>
@@ -28,7 +28,9 @@ export function Layout({ title, scriptSrc, children, bodyAttrs = {} }: LayoutPro
 
         <main class="container">{children}</main>
 
-        <script type="module" src={scriptSrc}></script>
+        {scripts.map((src) => (
+          <script type="module" src={src}></script>
+        ))}
       </body>
     </html>
   );

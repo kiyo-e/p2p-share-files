@@ -6,6 +6,8 @@
 
 import { render, useCallback, useState } from "hono/jsx/dom";
 
+const creatorCid = getClientId();
+
 const root = document.querySelector("main.container");
 if (root && document.getElementById("homeView")) {
   render(<HomeApp />, root);
@@ -39,7 +41,7 @@ function HomeApp() {
     if (busy) return;
     setBusy(true);
     try {
-      const { roomId } = await apiCreateRoom({ maxConcurrent });
+      const { roomId } = await apiCreateRoom({ maxConcurrent, creatorCid });
       if (encryptEnabled) {
         const rawKey = crypto.getRandomValues(new Uint8Array(32));
         const k = b64urlEncode(rawKey);
@@ -145,7 +147,7 @@ function HomeApp() {
   );
 }
 
-async function apiCreateRoom(body: { maxConcurrent: number }): Promise<{ roomId: string }> {
+async function apiCreateRoom(body: { maxConcurrent: number; creatorCid: string }): Promise<{ roomId: string }> {
   const res = await fetch("/api/rooms", {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -159,4 +161,13 @@ function b64urlEncode(u8: Uint8Array) {
   let s = "";
   for (let i = 0; i < u8.length; i++) s += String.fromCharCode(u8[i]);
   return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+
+function getClientId() {
+  const key = "share-files-client-id";
+  const stored = localStorage.getItem(key);
+  if (stored) return stored;
+  const id = crypto.randomUUID();
+  localStorage.setItem(key, id);
+  return id;
 }
