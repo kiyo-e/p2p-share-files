@@ -12,7 +12,7 @@ const app = new Hono<{ Bindings: Bindings }>();
 app.use("*", jsxRenderer());
 
 app.get("/", (c) => {
-  return c.render(TopPage({}));
+  return c.render(TopPage());
 });
 
 app.get("/r/:roomId", (c) => {

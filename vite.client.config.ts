@@ -7,8 +7,8 @@ export default defineConfig({
     sourcemap: true,
     rollupOptions: {
       input: {
-        home: "src/client/home.ts",
-        room: "src/client/room.ts",
+        home: "src/client/home.tsx",
+        room: "src/client/room.tsx",
       },
       output: {
         entryFileNames: "[name].js",
