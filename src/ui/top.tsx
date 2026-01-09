@@ -5,65 +5,67 @@
 
 import { Script } from "vite-ssr-components/hono";
 import { Layout } from "./layout";
+import type { Translations, Locale } from "../i18n";
 
-export function TopPage() {
+type TopPageProps = {
+  t: Translations;
+  locale: Locale;
+};
+
+export function TopPage({ t, locale }: TopPageProps) {
   return (
     <Layout
-      title="SHARE-FILES"
+      title={t.title}
       scripts={<Script src="/src/client/home.tsx" />}
+      t={t}
+      locale={locale}
     >
       <section id="homeView" class="card home">
         <div class="homeGrid">
           <div class="homeHero">
-            <div class="eyebrow">DIRECT—PRIVATE—INSTANT</div>
-            <h1>ファイルを<br />直接送る</h1>
-            <p class="lead">
-              サーバにアップロードせず、端末間で直接転送。接続の取り次ぎだけサーバを使います。
-            </p>
+            <div class="eyebrow">{t.home.eyebrow}</div>
+            <h1 dangerouslySetInnerHTML={{ __html: t.home.heroTitle }} />
+            <p class="lead">{t.home.heroLead}</p>
             <div class="heroChips">
               <span class="chip">NO SERVER STORAGE</span>
               <span class="chip">1:N P2P</span>
               <span class="chip">WEBRTC</span>
             </div>
             <div class="steps">
-              <div class="step"><span>1</span> ルーム作成</div>
-              <div class="step"><span>2</span> リンク共有</div>
-              <div class="step"><span>3</span> 送信</div>
+              <div class="step"><span>1</span> {t.home.step1}</div>
+              <div class="step"><span>2</span> {t.home.step2}</div>
+              <div class="step"><span>3</span> {t.home.step3}</div>
             </div>
           </div>
 
           <div class="homePanel">
             <div class="panelBlock">
-              <div class="panelTitle">送信を開始</div>
+              <div class="panelTitle">{t.home.sendTitle}</div>
             <label class="toggle">
               <input id="encryptToggle" type="checkbox" checked />
-              <span>E2E暗号化ON</span>
+              <span>{t.home.encryptOn}</span>
             </label>
             <label class="row gap">
-              <span class="muted small">同時送信上限</span>
+              <span class="muted small">{t.home.maxConcurrent}</span>
               <input id="maxConcurrent" class="input" type="number" min="1" max="10" value="3" />
             </label>
-            <button id="createBtn" class="btn primary">ルーム作成</button>
+            <button id="createBtn" class="btn primary">{t.home.createRoom}</button>
           </div>
 
             <hr class="sep" />
 
             <div class="panelBlock">
-              <div class="panelTitle">受信に参加</div>
+              <div class="panelTitle">{t.home.receiveTitle}</div>
               <div class="row gap wrap">
-                <input id="joinCode" class="input" placeholder="コード入力（例: ABCD...）" />
-                <button id="joinBtn" class="btn">参加</button>
+                <input id="joinCode" class="input" placeholder={t.home.codePlaceholder} />
+                <button id="joinBtn" class="btn">{t.home.join}</button>
               </div>
-              <p class="muted small">
-                暗号化ONならリンクに鍵が含まれます。
-              </p>
+              <p class="muted small">{t.home.encryptHint}</p>
             </div>
           </div>
         </div>
 
-        <div class="foot muted">
-          P2Pのみ。ネットワーク条件によっては接続不可
-        </div>
+        <div class="foot muted">{t.home.footer}</div>
       </section>
     </Layout>
   );

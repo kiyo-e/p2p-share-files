@@ -1,0 +1,69 @@
+{
+  "lang": "ja",
+  "langName": "日本語",
+  "title": "SHARE-FILES",
+  "header": {
+    "brand": "SHARE—FILES",
+    "sub": "P2P / 1:1 / WEBRTC"
+  },
+  "home": {
+    "eyebrow": "DIRECT—PRIVATE—INSTANT",
+    "heroTitle": "ファイルを<br />直接送る",
+    "heroLead": "サーバにアップロードせず、端末間で直接転送。接続の取り次ぎだけサーバを使います。",
+    "step1": "ルーム作成",
+    "step2": "リンク共有",
+    "step3": "送信",
+    "sendTitle": "送信を開始",
+    "encryptOn": "E2E暗号化ON",
+    "maxConcurrent": "同時送信上限",
+    "createRoom": "ルーム作成",
+    "receiveTitle": "受信に参加",
+    "codePlaceholder": "コード入力（例: ABCD...）",
+    "join": "参加",
+    "encryptHint": "暗号化ONならリンクに鍵が含まれます。",
+    "footer": "P2Pのみ。ネットワーク条件によっては接続不可"
+  },
+  "room": {
+    "eyebrow": "ROOM—SESSION",
+    "roomLabel": "ROOM",
+    "copyLink": "LINK",
+    "copyCode": "CODE",
+    "roleLabel": "ROLE",
+    "peersLabel": "PEERS",
+    "encryptHint": "暗号化ONの場合、リンクの「#」以降に復号鍵が含まれます（サーバには送られません）。",
+    "dropTitle": "DROP FILE HERE",
+    "dropOr": "または",
+    "select": "SELECT",
+    "send": "SEND",
+    "waiting": "送信側がファイルを選ぶのを待っています...",
+    "download": "DOWNLOAD"
+  },
+  "status": {
+    "initializing": "初期化中...",
+    "connecting": "シグナリング接続中...",
+    "waitingSender": "送信側として待機中...",
+    "waitingReceiver": "受信側として待機中...",
+    "dataChannelReady": "データチャネル準備完了",
+    "dataChannelClosed": "データチャネル切断",
+    "dataChannelError": "データチャネルエラー",
+    "generatingFile": "ファイル生成中...",
+    "receiveComplete": "受信完了",
+    "sending": "送信中...",
+    "sendComplete": "送信完了",
+    "queued": "順番待ち...",
+    "preparing": "接続準備中...",
+    "missingKey": "暗号化リンクの鍵が見つかりません（#k=... が必要）",
+    "receiving": "受信中: {name}",
+    "disconnected": "シグナリング切断"
+  },
+  "role": {
+    "offerer": "送信側（offerer）",
+    "answerer": "受信側（answerer）",
+    "unknown": "—"
+  },
+  "error": {
+    "roomCreationFailed": "ルーム作成に失敗しました",
+    "wsConnectionFailed": "WebSocket接続に失敗しました",
+    "generic": "エラー: {message}"
+  }
+}

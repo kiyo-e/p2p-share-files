@@ -1,0 +1,69 @@
+{
+  "lang": "zh",
+  "langName": "中文",
+  "title": "SHARE-FILES",
+  "header": {
+    "brand": "SHARE—FILES",
+    "sub": "P2P / 1:1 / WEBRTC"
+  },
+  "home": {
+    "eyebrow": "DIRECT—PRIVATE—INSTANT",
+    "heroTitle": "直接发送<br />文件",
+    "heroLead": "无需上传到服务器，设备之间直接传输。服务器仅用于建立连接。",
+    "step1": "创建房间",
+    "step2": "分享链接",
+    "step3": "发送",
+    "sendTitle": "开始发送",
+    "encryptOn": "E2E加密 开启",
+    "maxConcurrent": "最大并发数",
+    "createRoom": "创建房间",
+    "receiveTitle": "加入接收",
+    "codePlaceholder": "输入代码（例如: ABCD...）",
+    "join": "加入",
+    "encryptHint": "开启加密后，密钥包含在链接中。",
+    "footer": "仅P2P。网络条件可能导致连接失败"
+  },
+  "room": {
+    "eyebrow": "ROOM—SESSION",
+    "roomLabel": "ROOM",
+    "copyLink": "LINK",
+    "copyCode": "CODE",
+    "roleLabel": "ROLE",
+    "peersLabel": "PEERS",
+    "encryptHint": "开启加密后，解密密钥在链接的\"#\"部分（不会发送到服务器）。",
+    "dropTitle": "DROP FILE HERE",
+    "dropOr": "或",
+    "select": "SELECT",
+    "send": "SEND",
+    "waiting": "等待发送方选择文件...",
+    "download": "DOWNLOAD"
+  },
+  "status": {
+    "initializing": "初始化中...",
+    "connecting": "正在连接信令服务器...",
+    "waitingSender": "作为发送方等待中...",
+    "waitingReceiver": "作为接收方等待中...",
+    "dataChannelReady": "数据通道就绪",
+    "dataChannelClosed": "数据通道已关闭",
+    "dataChannelError": "数据通道错误",
+    "generatingFile": "正在生成文件...",
+    "receiveComplete": "接收完成",
+    "sending": "发送中...",
+    "sendComplete": "发送完成",
+    "queued": "排队中...",
+    "preparing": "准备连接中...",
+    "missingKey": "找不到加密密钥（需要 #k=...）",
+    "receiving": "接收中: {name}",
+    "disconnected": "信令已断开"
+  },
+  "role": {
+    "offerer": "发送方 (offerer)",
+    "answerer": "接收方 (answerer)",
+    "unknown": "—"
+  },
+  "error": {
+    "roomCreationFailed": "创建房间失败",
+    "wsConnectionFailed": "WebSocket连接失败",
+    "generic": "错误: {message}"
+  }
+}

@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { jsxRenderer } from "hono/jsx-renderer";
 import { Room } from "./room";
 import { RoomPage, TopPage } from "./ui";
+import { detectLocale, getTranslations, supportedLocales, type Locale } from "./i18n";
 
 type Bindings = CloudflareBindings & {
   ROOM: DurableObjectNamespace;
@@ -11,12 +12,26 @@ const app = new Hono<{ Bindings: Bindings }>();
 
 app.use("*", jsxRenderer());
 
+function getLocaleFromRequest(c: { req: { header: (name: string) => string | undefined; query: (name: string) => string | undefined } }): Locale {
+  // Check query parameter first (for language switcher)
+  const queryLang = c.req.query("lang");
+  if (queryLang && supportedLocales.includes(queryLang as Locale)) {
+    return queryLang as Locale;
+  }
+  // Fall back to Accept-Language header
+  return detectLocale(c.req.header("Accept-Language"));
+}
+
 app.get("/", (c) => {
-  return c.render(<TopPage />);
+  const locale = getLocaleFromRequest(c);
+  const t = getTranslations(locale);
+  return c.render(<TopPage t={t} locale={locale} />);
 });
 
 app.get("/r/:roomId", (c) => {
-  return c.render(<RoomPage roomId={c.req.param("roomId")} />);
+  const locale = getLocaleFromRequest(c);
+  const t = getTranslations(locale);
+  return c.render(<RoomPage roomId={c.req.param("roomId")} t={t} locale={locale} />);
 });
 
 app.post("/api/rooms", async (c) => {

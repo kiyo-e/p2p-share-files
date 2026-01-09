@@ -5,6 +5,7 @@
  */
 
 import { render, useCallback, useEffect, useMemo, useRef, useState } from "hono/jsx/dom";
+import { getT } from "../i18n/client";
 
 type RoomRole = "offerer" | "answerer" | null;
 
@@ -69,6 +70,7 @@ type OffererPeer = {
 };
 
 const clientId = getClientId();
+const t = getT();
 
 const root = document.querySelector("main.container");
 const roomId = document.body.dataset.roomId;
@@ -81,7 +83,7 @@ type RoomAppProps = {
 };
 
 function RoomApp({ roomId }: RoomAppProps) {
-  const [status, setStatus] = useState("初期化中...");
+  const [status, setStatus] = useState(t.status.initializing);
   const [role, setRole] = useState<RoomRole>(null);
   const [peers, setPeers] = useState(0);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -171,7 +173,7 @@ function RoomApp({ roomId }: RoomAppProps) {
   const finalizeDownload = useCallback(async () => {
     const meta = incomingMetaRef.current;
     if (!meta) return;
-    setStatus("ファイル生成中...");
+    setStatus(t.status.generatingFile);
 
     if (downloadUrlRef.current) {
       URL.revokeObjectURL(downloadUrlRef.current);
@@ -182,7 +184,7 @@ function RoomApp({ roomId }: RoomAppProps) {
     downloadUrlRef.current = url;
 
     setDownload({ url, name: meta.name, size: meta.size });
-    setStatus("受信完了");
+    setStatus(t.status.receiveComplete);
   }, []);
 
   const sendFileToPeer = useCallback(async (peer: OffererPeer, file: File) => {
@@ -200,7 +202,7 @@ function RoomApp({ roomId }: RoomAppProps) {
     log("[send] starting:", meta.name, "size:", meta.size, "peer:", peer.peerId);
     dc.send(JSON.stringify(meta));
 
-    setStatus("送信中...");
+    setStatus(t.status.sending);
     setSendProgress({ sent: 0, total: file.size });
 
     let sent = 0;
@@ -238,7 +240,7 @@ function RoomApp({ roomId }: RoomAppProps) {
 
     dc.send(JSON.stringify({ type: "done" } satisfies DoneMessage));
     log("[send] completed, peer:", peer.peerId);
-    setStatus("送信完了");
+    setStatus(t.status.sendComplete);
     peer.sent = true;
 
     if (wsRef.current) {
@@ -274,7 +276,7 @@ function RoomApp({ roomId }: RoomAppProps) {
 
   useEffect(() => {
     const boot = async () => {
-      setStatus("シグナリング接続中...");
+      setStatus(t.status.connecting);
 
       const keyParam = new URLSearchParams(location.hash.slice(1)).get("k");
       cryptoKeyRef.current = keyParam ? await importAesKey(b64urlDecode(keyParam)) : null;
@@ -286,7 +288,7 @@ function RoomApp({ roomId }: RoomAppProps) {
         ch.binaryType = "arraybuffer";
         ch.onopen = () => {
           log("[rtc] datachannel open (peer:", peer.peerId + ")");
-          setStatus("データチャネル準備完了");
+          setStatus(t.status.dataChannelReady);
           void trySendPeer(peer, "datachannel-open");
         };
         ch.onclose = () => {
@@ -385,15 +387,15 @@ function RoomApp({ roomId }: RoomAppProps) {
         ch.binaryType = "arraybuffer";
         ch.onopen = () => {
           log("[rtc] datachannel open (receiver)");
-          setStatus("データチャネル準備完了");
+          setStatus(t.status.dataChannelReady);
         };
         ch.onclose = () => {
           log("[rtc] datachannel close (receiver)");
-          setStatus("データチャネル切断");
+          setStatus(t.status.dataChannelClosed);
         };
         ch.onerror = () => {
           console.warn("[rtc] datachannel error (receiver)");
-          setStatus("データチャネルエラー");
+          setStatus(t.status.dataChannelError);
         };
 
         ch.onmessage = async (ev) => {
@@ -410,10 +412,10 @@ function RoomApp({ roomId }: RoomAppProps) {
               setRecvProgress({ got: 0, total: m.size });
 
               if (m.encrypted && !cryptoKeyRef.current) {
-                setStatus("暗号化リンクの鍵が見つかりません（#k=... が必要）");
+                setStatus(t.status.missingKey);
                 return;
               }
-              setStatus(`受信中: ${m.name}`);
+              setStatus(t.status.receiving.replace("{name}", m.name));
             }
 
             if (m.type === "done") {
@@ -499,9 +501,9 @@ function RoomApp({ roomId }: RoomAppProps) {
           roleRef.current = msg.role;
           setRole(msg.role);
           if (msg.role === "offerer") {
-            setStatus("送信側として待機中...");
+            setStatus(t.status.waitingSender);
           } else {
-            setStatus("受信側として待機中...");
+            setStatus(t.status.waitingReceiver);
           }
           return;
         }
@@ -514,7 +516,7 @@ function RoomApp({ roomId }: RoomAppProps) {
 
         if (msg.type === "wait") {
           if (roleRef.current === "answerer") {
-            setStatus("順番待ち...");
+            setStatus(t.status.queued);
           }
           return;
         }
@@ -526,7 +528,7 @@ function RoomApp({ roomId }: RoomAppProps) {
             return;
           }
           if (roleRef.current === "answerer") {
-            setStatus("接続準備中...");
+            setStatus(t.status.preparing);
           }
           return;
         }
@@ -599,12 +601,12 @@ function RoomApp({ roomId }: RoomAppProps) {
         }
       };
 
-      ws.onclose = () => setStatus("シグナリング切断");
+      ws.onclose = () => setStatus(t.status.disconnected);
       ws.onerror = () => console.warn("[ws] error");
     };
 
     boot().catch((e) => {
-      setStatus(`エラー: ${String(e?.message || e)}`);
+      setStatus(t.error.generic.replace("{message}", String(e?.message || e)));
     });
 
     return () => {
@@ -624,9 +626,9 @@ function RoomApp({ roomId }: RoomAppProps) {
   }, [roomId, finalizeDownload, trySendPeer]);
 
   const roleLabel = useMemo(() => {
-    if (role === "offerer") return "送信側（offerer）";
-    if (role === "answerer") return "受信側（answerer）";
-    return "—";
+    if (role === "offerer") return t.role.offerer;
+    if (role === "answerer") return t.role.answerer;
+    return t.role.unknown;
   }, [role]);
 
   const peersLabel = useMemo(() => String(peers), [peers]);
@@ -662,29 +664,27 @@ function RoomApp({ roomId }: RoomAppProps) {
     <section id="roomView" class="card room">
       <div class="roomHeader">
         <div class="roomTitle">
-          <div class="eyebrow">ROOM—SESSION</div>
+          <div class="eyebrow">{t.room.eyebrow}</div>
           <h2>
-            ROOM <span id="roomIdLabel" class="mono">{roomId}</span>
+            {t.room.roomLabel} <span id="roomIdLabel" class="mono">{roomId}</span>
           </h2>
           <div id="status" class="status">{status}</div>
         </div>
         <div class="right">
-          <button id="copyLinkBtn" class="btn" onClick={handleCopyLink}>LINK</button>
-          <button id="copyCodeBtn" class="btn" onClick={handleCopyCode}>CODE</button>
+          <button id="copyLinkBtn" class="btn" onClick={handleCopyLink}>{t.room.copyLink}</button>
+          <button id="copyCodeBtn" class="btn" onClick={handleCopyCode}>{t.room.copyCode}</button>
         </div>
       </div>
 
       <div class="roomGrid">
         <div class="roomSide">
           <div class="kv">
-            <div class="k">ROLE</div>
+            <div class="k">{t.room.roleLabel}</div>
             <div class="v" id="roleLabel">{roleLabel}</div>
-            <div class="k">PEERS</div>
+            <div class="k">{t.room.peersLabel}</div>
             <div class="v" id="peersLabel">{peersLabel}</div>
           </div>
-          <div class="sideCard muted small">
-            暗号化ONの場合、リンクの「#」以降に復号鍵が含まれます（サーバには送られません）。
-          </div>
+          <div class="sideCard muted small">{t.room.encryptHint}</div>
         </div>
 
         <div class="roomMain">
@@ -696,17 +696,17 @@ function RoomApp({ roomId }: RoomAppProps) {
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
             >
-              <div class="dropTitle">DROP FILE HERE</div>
-              <div class="muted small">または</div>
+              <div class="dropTitle">{t.room.dropTitle}</div>
+              <div class="muted small">{t.room.dropOr}</div>
               <label class="btn">
-                SELECT
+                {t.room.select}
                 <input id="fileInput" type="file" hidden onChange={handleFileInput} />
               </label>
             </div>
 
             <div class="row gap wrap">
               <button id="sendBtn" class="btn primary" disabled={!canSend} onClick={handleSend}>
-                SEND
+                {t.room.send}
               </button>
               <div class="muted small" id="fileInfo">{selectedFileLabel}</div>
             </div>
@@ -724,7 +724,7 @@ function RoomApp({ roomId }: RoomAppProps) {
           </div>
 
           <div id="receiverPane" class={`pane${showReceiver ? "" : " hidden"}`}>
-            <div class="muted">送信側がファイルを選ぶのを待っています...</div>
+            <div class="muted">{t.room.waiting}</div>
 
             <div class="progress">
               <div class="bar">
@@ -744,7 +744,7 @@ function RoomApp({ roomId }: RoomAppProps) {
                 href={download?.url ?? "#"}
                 download={download?.name}
               >
-                DOWNLOAD
+                {t.room.download}
               </a>
               <div id="downloadMeta" class="muted small">
                 {download ? `${download.name} (${formatBytes(download.size)})` : ""}
@@ -769,7 +769,7 @@ function connectSignaling(roomId: string, clientId: string) {
     url.searchParams.set("cid", clientId);
     const ws = new WebSocket(url.toString());
     ws.onopen = () => resolve(ws);
-    ws.onerror = () => reject(new Error("WebSocket接続に失敗しました"));
+    ws.onerror = () => reject(new Error(t.error.wsConnectionFailed));
   });
 }
 
