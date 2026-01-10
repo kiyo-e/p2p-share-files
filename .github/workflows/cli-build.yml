@@ -1,0 +1,31 @@
+name: Build CLI
+
+on:
+  push:
+    paths:
+      - "cli/**"
+      - ".github/workflows/cli-build.yml"
+  pull_request:
+    paths:
+      - "cli/**"
+      - ".github/workflows/cli-build.yml"
+
+jobs:
+  build:
+    name: Build CLI (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build
+        working-directory: cli
+        run: cargo build --release

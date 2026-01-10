@@ -30,6 +30,27 @@ WebRTCを使ったP2Pファイル共有ツール。サーバーを経由せず�
 - [Vite](https://vite.dev/) - SSR対応ビルドツール
 - WebRTC - P2Pデータ転送
 
+## CLI (Rust)
+
+`cli/` ディレクトリに Rust 製のCLIを用意しています。ブラウザ⇄ターミナル、ターミナル⇄ターミナルの転送に対応します（Linux/macOS）。
+
+```sh
+cd cli
+cargo run --release -- send --file /path/to/file
+cargo run --release -- receive --room-id <ROOM_ID> --output-dir ./downloads
+```
+
+デフォルトではデモ環境へ接続します。`SHARE_FILES_ENDPOINT` 環境変数で上書きできます。
+
+```sh
+SHARE_FILES_ENDPOINT=https://share-files.karakuri-maker.com \
+  cargo run --release -- send --file /path/to/file
+```
+
+既存ルームに参加したい場合は `--room-id` を明示指定してください。
+
+※ CLI は暗号化転送（`#k=...`）には未対応です。
+
 ## 必要環境
 
 - [Bun](https://bun.sh/) ランタイム

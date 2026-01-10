@@ -16,6 +16,7 @@ public/assets/
 # deps
 node_modules/
 .wrangler
+cli/target/
 
 # env
 .env
@@ -38,4 +39,5 @@ lerna-debug.log*
 !.dev.vars.example
 !.env.example
 .agents/execplans/*
+!.agents/execplans/cli-rust-client.md
 tmp/

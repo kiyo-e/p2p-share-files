@@ -30,6 +30,27 @@ A P2P file sharing tool using WebRTC. Transfer files directly between browsers w
 - [Vite](https://vite.dev/) - SSR-enabled build tool
 - WebRTC - P2P data transfer
 
+## CLI (Rust)
+
+The `cli/` directory contains a Rust-based CLI that can send or receive files using the same WebRTC signaling flow, enabling browser ⇄ terminal and terminal ⇄ terminal transfers on Linux/macOS.
+
+```sh
+cd cli
+cargo run --release -- send --file /path/to/file
+cargo run --release -- receive --room-id <ROOM_ID> --output-dir ./downloads
+```
+
+By default it connects to the demo endpoint. Override it with the `SHARE_FILES_ENDPOINT` environment variable:
+
+```sh
+SHARE_FILES_ENDPOINT=https://share-files.karakuri-maker.com \
+  cargo run --release -- send --file /path/to/file
+```
+
+You can also provide `--room-id` explicitly if you want to join an existing room.
+
+Note: the CLI does not support encrypted transfers (`#k=...`) yet.
+
 ## Prerequisites
 
 - [Bun](https://bun.sh/) runtime
