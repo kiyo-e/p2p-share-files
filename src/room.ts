@@ -151,7 +151,6 @@ export class Room extends DurableObjectBase {
       if (peerSocket) {
         this.setAnswererState(peerSocket, "done");
       }
-      this.activePairs.delete(msg.peerId);
       this.fillSlots();
       return;
     }

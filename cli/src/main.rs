@@ -230,6 +230,7 @@ async fn run_send(
   let file_info = load_file_info(file_path).await?;
   let mut endpoint_override = endpoint.map(|value| value.to_string());
   let mut room_key: Option<Vec<u8>> = None;
+  let client_id = Uuid::new_v4().to_string();
   let room_id = match room_id {
     Some(value) => {
       let parsed = parse_room_input(value)?;
@@ -239,7 +240,7 @@ async fn run_send(
       room_key = parsed.key;
       parsed.room_id
     }
-    None => create_room(endpoint_override.as_deref()).await?,
+    None => create_room(endpoint_override.as_deref(), Some(&client_id)).await?,
   };
   let encrypt = !no_encrypt;
   let room_key = if encrypt {
@@ -254,7 +255,6 @@ async fn run_send(
     Some(key) => Some(Arc::new(build_crypto(key)?)),
     None => None,
   };
-  let client_id = Uuid::new_v4().to_string();
   let ws_url = build_ws_url(endpoint_override.as_deref(), &room_id, &client_id)?;
 
   log_line("[room] id", &room_id);
@@ -1051,9 +1051,12 @@ fn base_endpoint_url(endpoint: Option<&str>) -> Result<Url> {
   Ok(url)
 }
 
-async fn create_room(endpoint: Option<&str>) -> Result<String> {
+async fn create_room(endpoint: Option<&str>, creator_cid: Option<&str>) -> Result<String> {
   #[derive(Serialize)]
-  struct RoomRequest {}
+  struct RoomRequest {
+    #[serde(rename = "creatorCid", skip_serializing_if = "Option::is_none")]
+    creator_cid: Option<String>,
+  }
 
   #[derive(Deserialize)]
   struct RoomResponse {
@@ -1066,7 +1069,9 @@ async fn create_room(endpoint: Option<&str>) -> Result<String> {
   let client = reqwest::Client::new();
   let response = client
     .post(url)
-    .json(&RoomRequest {})
+    .json(&RoomRequest {
+      creator_cid: creator_cid.map(|value| value.to_string()),
+    })
     .send()
     .await
     .context("create room request")?;

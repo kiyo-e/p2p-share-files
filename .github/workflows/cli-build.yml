@@ -2,6 +2,8 @@ name: Build CLI
 
 on:
   push:
+    branches:
+      - main
     paths:
       - "cli/**"
       - ".github/workflows/cli-build.yml"
@@ -9,6 +11,7 @@ on:
     paths:
       - "cli/**"
       - ".github/workflows/cli-build.yml"
+  workflow_dispatch:
 
 jobs:
   build:
