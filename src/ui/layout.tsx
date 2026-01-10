@@ -40,12 +40,12 @@ export function Layout({ title, children, scripts, bodyAttrs = {}, t, locale }: 
             {supportedLocales.map((l) => {
               const langT = getTranslations(l);
               const isActive = l === locale;
-              const basePath = typeof window !== "undefined" ? window.location.pathname : "";
               return (
                 <a
                   href={`?lang=${l}`}
                   class={`langBtn${isActive ? " active" : ""}`}
                   title={langT.langName}
+                  onClick={`event.preventDefault();location.href='?lang=${l}'+location.hash;`}
                 >
                   {l.toUpperCase()}
                 </a>

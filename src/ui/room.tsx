@@ -32,8 +32,8 @@ export function RoomPage({ roomId, maxConcurrent, t, locale }: RoomPageProps) {
             <div id="status" class="status">{t.status.initializing}</div>
           </div>
           <div class="right">
-            <button id="copyLinkBtn" class="btn">{t.room.copyLink}</button>
-            <button id="copyCodeBtn" class="btn">{t.room.copyCode}</button>
+            <button id="copyLinkBtn" class="btn" title={t.room.copyLinkHint}>{t.room.copyLink}</button>
+            <button id="copyCodeBtn" class="btn" title={t.room.copyCodeHint}>{t.room.copyCode}</button>
           </div>
         </div>
 
@@ -43,7 +43,7 @@ export function RoomPage({ roomId, maxConcurrent, t, locale }: RoomPageProps) {
               <div class="k">{t.room.roleLabel}</div>
               <div class="v" id="roleLabel">{t.role.unknown}</div>
               <div class="k">{t.room.peersLabel}</div>
-              <div class="v" id="peersLabel">0</div>
+              <div class="v" id="peersLabel">0{t.room.peersUnit}</div>
             </div>
             <div class="sideCard muted small">{t.room.encryptHint}</div>
             <div class="sideCard muted small">{maxConcurrentLabel}</div>

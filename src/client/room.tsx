@@ -514,6 +514,9 @@ function RoomApp({ roomId, maxConcurrent }: RoomAppProps) {
         if (msg.type === "peers") {
           peersRef.current = msg.count;
           setPeers(msg.count);
+          if (roleRef.current === "offerer" && msg.count > 0) {
+            setStatus(t.status.waitingSenderReady);
+          }
           return;
         }
 
@@ -634,7 +637,7 @@ function RoomApp({ roomId, maxConcurrent }: RoomAppProps) {
     return t.role.unknown;
   }, [role]);
 
-  const peersLabel = useMemo(() => String(peers), [peers]);
+  const peersLabel = useMemo(() => `${peers}${t.room.peersUnit}`, [peers]);
 
   const sendPct = useMemo(
     () => progressPercent(sendProgress.sent, sendProgress.total),
@@ -668,6 +671,14 @@ function RoomApp({ roomId, maxConcurrent }: RoomAppProps) {
   const showSender = role === "offerer";
   const showReceiver = role === "answerer";
 
+  const sendHint = useMemo(() => {
+    if (!selectedFile) return t.room.sendHintNoFile;
+    if (peers === 0) return t.room.sendHintNoPeer;
+    return t.room.sendHintReady;
+  }, [selectedFile, peers]);
+
+  const showSendProgress = sendProgress.total > 0;
+
   return (
     <section id="roomView" class="card room">
       <div class="roomHeader">
@@ -679,8 +690,8 @@ function RoomApp({ roomId, maxConcurrent }: RoomAppProps) {
           <div id="status" class="status">{status}</div>
         </div>
         <div class="right">
-          <button id="copyLinkBtn" class="btn" onClick={handleCopyLink}>{t.room.copyLink}</button>
-          <button id="copyCodeBtn" class="btn" onClick={handleCopyCode}>{t.room.copyCode}</button>
+          <button id="copyLinkBtn" class="btn" onClick={handleCopyLink} title={t.room.copyLinkHint}>{t.room.copyLink}</button>
+          <button id="copyCodeBtn" class="btn" onClick={handleCopyCode} title={t.room.copyCodeHint}>{t.room.copyCode}</button>
         </div>
       </div>
 
@@ -714,37 +725,43 @@ function RoomApp({ roomId, maxConcurrent }: RoomAppProps) {
             </div>
 
             <div class="row gap wrap">
-              <button id="sendBtn" class="btn primary" disabled={!canSend} onClick={handleSend}>
+              <button id="sendBtn" class="btn primary" disabled={!canSend} onClick={handleSend} title={sendHint}>
                 {t.room.send}
               </button>
-              <div class="muted small" id="fileInfo">{selectedFileLabel}</div>
+              <div class="muted small" id="fileInfo">{selectedFileLabel || sendHint}</div>
             </div>
 
-            <div class="progress">
-              <div class="bar">
-                <div
-                  id="sendBar"
-                  class="fill"
-                  style={{ width: `${sendPct}%` }}
-                ></div>
+            {showSendProgress && (
+              <div class="progress">
+                <div class="bar">
+                  <div
+                    id="sendBar"
+                    class="fill"
+                    style={{ width: `${sendPct}%` }}
+                  ></div>
+                </div>
+                <div class="muted small" id="sendText">{sendText}</div>
               </div>
-              <div class="muted small" id="sendText">{sendText}</div>
-            </div>
+            )}
           </div>
 
           <div id="receiverPane" class={`pane${showReceiver ? "" : " hidden"}`}>
-            <div class="muted">{t.room.waiting}</div>
+            {!recvProgress.total && !download && (
+              <div class="muted">{t.room.waiting}</div>
+            )}
 
-            <div class="progress">
-              <div class="bar">
-                <div
-                  id="recvBar"
-                  class="fill"
-                  style={{ width: `${recvPct}%` }}
-                ></div>
+            {recvProgress.total > 0 && (
+              <div class="progress">
+                <div class="bar">
+                  <div
+                    id="recvBar"
+                    class="fill"
+                    style={{ width: `${recvPct}%` }}
+                  ></div>
+                </div>
+                <div class="muted small" id="recvText">{recvText}</div>
               </div>
-              <div class="muted small" id="recvText">{recvText}</div>
-            </div>
+            )}
 
             <div id="downloadArea" class={download ? "" : "hidden"}>
               <a
