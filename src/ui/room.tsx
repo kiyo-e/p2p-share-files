@@ -9,16 +9,18 @@ import type { Translations, Locale } from "../i18n";
 
 type RoomPageProps = {
   roomId: string;
+  maxConcurrent: number;
   t: Translations;
   locale: Locale;
 };
 
-export function RoomPage({ roomId, t, locale }: RoomPageProps) {
+export function RoomPage({ roomId, maxConcurrent, t, locale }: RoomPageProps) {
+  const maxConcurrentLabel = t.room.maxConcurrentLimit.replace("{max}", String(maxConcurrent));
   return (
     <Layout
       title={t.title}
       scripts={<Script src="/src/client/room.tsx" />}
-      bodyAttrs={{ "data-room-id": roomId }}
+      bodyAttrs={{ "data-room-id": roomId, "data-max-concurrent": String(maxConcurrent) }}
       t={t}
       locale={locale}
     >
@@ -44,6 +46,7 @@ export function RoomPage({ roomId, t, locale }: RoomPageProps) {
               <div class="v" id="peersLabel">0</div>
             </div>
             <div class="sideCard muted small">{t.room.encryptHint}</div>
+            <div class="sideCard muted small">{maxConcurrentLabel}</div>
           </div>
 
           <div class="roomMain">

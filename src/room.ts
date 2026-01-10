@@ -33,6 +33,12 @@ type RoomConfig = {
 };
 
 const DEFAULT_MAX_CONCURRENT = 3;
+const MAX_MAX_CONCURRENT = 10;
+
+function normalizeMaxConcurrent(value?: number) {
+  const base = Number.isFinite(value) ? Math.floor(value!) : DEFAULT_MAX_CONCURRENT;
+  return Math.min(MAX_MAX_CONCURRENT, Math.max(1, base));
+}
 
 function toText(message: ArrayBuffer | string) {
   return typeof message === "string" ? message : new TextDecoder().decode(message);
@@ -69,16 +75,19 @@ export class Room extends DurableObjectBase {
     const url = new URL(request.url);
 
     if (url.pathname === "/config") {
-      if (request.method !== "POST") {
-        return new Response("Expected POST", { status: 400 });
+      if (request.method === "POST") {
+        const body = (await request.json()) as { maxConcurrent?: number; creatorCid?: string };
+        const maxConcurrent = normalizeMaxConcurrent(body.maxConcurrent);
+        const creatorCid = typeof body.creatorCid === "string" ? body.creatorCid : undefined;
+        this.config = { maxConcurrent, creatorCid };
+        await this.ctx.storage.put("config", this.config);
+        return new Response("OK");
       }
-      const body = (await request.json()) as { maxConcurrent?: number; creatorCid?: string };
-      const max = Number.isFinite(body.maxConcurrent) ? Math.floor(body.maxConcurrent!) : DEFAULT_MAX_CONCURRENT;
-      const maxConcurrent = Math.max(1, max);
-      const creatorCid = typeof body.creatorCid === "string" ? body.creatorCid : undefined;
-      this.config = { maxConcurrent, creatorCid };
-      await this.ctx.storage.put("config", this.config);
-      return new Response("OK");
+      if (request.method === "GET") {
+        await this.ensureConfig();
+        return Response.json(this.config ?? { maxConcurrent: DEFAULT_MAX_CONCURRENT });
+      }
+      return new Response("Expected POST or GET", { status: 400 });
     }
 
     const upgrade = request.headers.get("Upgrade");
@@ -190,7 +199,10 @@ export class Room extends DurableObjectBase {
     if (this.config) return this.config;
     const stored = await this.ctx.storage.get<RoomConfig>("config");
     if (stored?.maxConcurrent) {
-      this.config = stored;
+      this.config = {
+        ...stored,
+        maxConcurrent: normalizeMaxConcurrent(stored.maxConcurrent),
+      };
     } else {
       this.config = { maxConcurrent: DEFAULT_MAX_CONCURRENT };
     }

@@ -36,9 +36,28 @@ WebRTCを使ったP2Pファイル共有ツール。サーバーを経由せず�
 
 ```sh
 cd cli
-cargo run --release -- send --file /path/to/file
-cargo run --release -- receive --room-id <ROOM_ID> --output-dir ./downloads
+cargo run --release -- send /path/to/file
+cargo run --release -- receive <ROOM_ID_OR_URL> --output-dir ./downloads
 ```
+
+暗号化は `send` のデフォルトです。`send` が出力する `#k=...` 付きのURLを、そのまま `receive` に渡せます。
+
+```sh
+cargo run --release -- send /path/to/file
+cargo run --release -- receive "https://share-files.karakuri-maker.com/r/ROOM#k=..."
+```
+
+暗号化を無効にする場合は `--no-encrypt` を指定してください。
+
+復号鍵を明示したい場合は `receive` に `--key`（base64url）を渡します。
+
+```sh
+cargo run --release -- receive <ROOM_ID> --key <BASE64URL_KEY> --output-dir ./downloads
+```
+
+デフォルトでは、`send` と `receive` は転送成功後に終了します。継続して待ちたい場合は `--stay-open` を指定してください。
+
+※ `#k=...` を含むURLはシェルでクォートしてください。従来の `--file` / `--room-id` も引き続き利用できます。
 
 デフォルトではデモ環境へ接続します。`SHARE_FILES_ENDPOINT` 環境変数で上書きできます。
 
@@ -48,8 +67,6 @@ SHARE_FILES_ENDPOINT=https://share-files.karakuri-maker.com \
 ```
 
 既存ルームに参加したい場合は `--room-id` を明示指定してください。
-
-※ CLI は暗号化転送（`#k=...`）には未対応です。
 
 ## 必要環境
 

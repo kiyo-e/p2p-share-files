@@ -36,9 +36,28 @@ The `cli/` directory contains a Rust-based CLI that can send or receive files us
 
 ```sh
 cd cli
-cargo run --release -- send --file /path/to/file
-cargo run --release -- receive --room-id <ROOM_ID> --output-dir ./downloads
+cargo run --release -- send /path/to/file
+cargo run --release -- receive <ROOM_ID_OR_URL> --output-dir ./downloads
 ```
+
+Encrypted transfers are enabled by default for `send`. The command prints a room URL with `#k=...` that you can pass directly to `receive`:
+
+```sh
+cargo run --release -- send /path/to/file
+cargo run --release -- receive "https://share-files.karakuri-maker.com/r/ROOM#k=..."
+```
+
+To disable encryption for `send`, pass `--no-encrypt`.
+
+If you want to provide the decryption key explicitly, pass `--key` (base64url) to `receive`:
+
+```sh
+cargo run --release -- receive <ROOM_ID> --key <BASE64URL_KEY> --output-dir ./downloads
+```
+
+By default, `send` and `receive` exit after a successful transfer. Use `--stay-open` to keep the process running for additional transfers.
+
+Note: URLs with `#k=...` should be quoted in the shell. Legacy flags `--file` and `--room-id` are still accepted.
 
 By default it connects to the demo endpoint. Override it with the `SHARE_FILES_ENDPOINT` environment variable:
 
@@ -48,8 +67,6 @@ SHARE_FILES_ENDPOINT=https://share-files.karakuri-maker.com \
 ```
 
 You can also provide `--room-id` explicitly if you want to join an existing room.
-
-Note: the CLI does not support encrypted transfers (`#k=...`) yet.
 
 ## Prerequisites
 

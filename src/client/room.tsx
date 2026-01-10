@@ -74,15 +74,18 @@ const t = getT();
 
 const root = document.querySelector("main.container");
 const roomId = document.body.dataset.roomId;
+const roomMaxConcurrent = Number.parseInt(document.body.dataset.maxConcurrent || "", 10);
+const maxConcurrent = Number.isFinite(roomMaxConcurrent) ? roomMaxConcurrent : 3;
 if (root && roomId && document.getElementById("roomView")) {
-  render(<RoomApp roomId={roomId} />, root);
+  render(<RoomApp roomId={roomId} maxConcurrent={maxConcurrent} />, root);
 }
 
 type RoomAppProps = {
   roomId: string;
+  maxConcurrent: number;
 };
 
-function RoomApp({ roomId }: RoomAppProps) {
+function RoomApp({ roomId, maxConcurrent }: RoomAppProps) {
   const [status, setStatus] = useState(t.status.initializing);
   const [role, setRole] = useState<RoomRole>(null);
   const [peers, setPeers] = useState(0);
@@ -656,6 +659,11 @@ function RoomApp({ roomId }: RoomAppProps) {
     return `${selectedFile.name} (${formatBytes(selectedFile.size)})`;
   }, [selectedFile]);
 
+  const maxConcurrentLabel = useMemo(
+    () => t.room.maxConcurrentLimit.replace("{max}", String(maxConcurrent)),
+    [maxConcurrent]
+  );
+
   const canSend = role === "offerer" && !!selectedFile;
   const showSender = role === "offerer";
   const showReceiver = role === "answerer";
@@ -685,6 +693,7 @@ function RoomApp({ roomId }: RoomAppProps) {
             <div class="v" id="peersLabel">{peersLabel}</div>
           </div>
           <div class="sideCard muted small">{t.room.encryptHint}</div>
+          <div class="sideCard muted small">{maxConcurrentLabel}</div>
         </div>
 
         <div class="roomMain">

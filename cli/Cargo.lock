@@ -1923,11 +1923,14 @@ dependencies = [
 name = "share-files-cli"
 version = "0.1.0"
 dependencies = [
+ "aes-gcm",
  "anyhow",
+ "base64 0.22.1",
  "bytes",
  "chrono",
  "clap",
  "futures-util",
+ "getrandom 0.2.16",
  "mime_guess",
  "reqwest",
  "serde",

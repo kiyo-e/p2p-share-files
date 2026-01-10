@@ -39,5 +39,4 @@ lerna-debug.log*
 !.dev.vars.example
 !.env.example
 .agents/execplans/*
-!.agents/execplans/cli-rust-client.md
 tmp/
