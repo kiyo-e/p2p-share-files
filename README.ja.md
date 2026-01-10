@@ -32,7 +32,14 @@ WebRTCを使ったP2Pファイル共有ツール。サーバーを経由せず�
 
 ## CLI (Rust)
 
-`cli/` ディレクトリに Rust 製のCLIを用意しています。ブラウザ⇄ターミナル、ターミナル⇄ターミナルの転送に対応します（Linux/macOS）。
+`cli/` ディレクトリに Rust 製のCLIを用意しています。ブラウザ⇄ターミナル、ターミナル⇄ターミナルの転送に対応します。
+
+### 対応プラットフォーム
+
+- **Linux** (x86_64)
+- **macOS** (Intel / Apple Silicon)
+
+GitHub Actionsにより、`cli/` ディレクトリへのpush/PR時にビルドが自動テストされます。
 
 ```sh
 cd cli
@@ -63,7 +70,7 @@ cargo run --release -- receive <ROOM_ID> --key <BASE64URL_KEY> --output-dir ./do
 
 ```sh
 SHARE_FILES_ENDPOINT=https://share-files.karakuri-maker.com \
-  cargo run --release -- send --file /path/to/file
+  cargo run --release -- send /path/to/file
 ```
 
 既存ルームに参加したい場合は `--room-id` を明示指定してください。

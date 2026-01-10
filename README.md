@@ -32,7 +32,14 @@ A P2P file sharing tool using WebRTC. Transfer files directly between browsers w
 
 ## CLI (Rust)
 
-The `cli/` directory contains a Rust-based CLI that can send or receive files using the same WebRTC signaling flow, enabling browser ⇄ terminal and terminal ⇄ terminal transfers on Linux/macOS.
+The `cli/` directory contains a Rust-based CLI that can send or receive files using the same WebRTC signaling flow, enabling browser ⇄ terminal and terminal ⇄ terminal transfers.
+
+### Supported Platforms
+
+- **Linux** (x86_64)
+- **macOS** (Intel / Apple Silicon)
+
+Builds are automatically tested via GitHub Actions on push/PR to the `cli/` directory.
 
 ```sh
 cd cli
@@ -63,7 +70,7 @@ By default it connects to the demo endpoint. Override it with the `SHARE_FILES_E
 
 ```sh
 SHARE_FILES_ENDPOINT=https://share-files.karakuri-maker.com \
-  cargo run --release -- send --file /path/to/file
+  cargo run --release -- send /path/to/file
 ```
 
 You can also provide `--room-id` explicitly if you want to join an existing room.
