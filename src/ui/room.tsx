@@ -16,6 +16,7 @@ type RoomPageProps = {
 
 export function RoomPage({ roomId, maxConcurrent, t, locale }: RoomPageProps) {
   const maxConcurrentLabel = t.room.maxConcurrentLimit.replace("{max}", String(maxConcurrent));
+  const initialStepLabel = t.guide.stepLabel.replace("{current}", "1").replace("{total}", "4");
   return (
     <Layout
       title={t.title}
@@ -50,6 +51,18 @@ export function RoomPage({ roomId, maxConcurrent, t, locale }: RoomPageProps) {
           </div>
 
           <div class="roomMain">
+            <div class="stepGuide waiting">
+              <div class="stepLabel">{initialStepLabel}</div>
+              <div class="stepMain">{t.guide.receiverConnecting}</div>
+              <div class="stepSub">{t.guide.receiverConnectingSub}</div>
+              <div class="stepProgress">
+                <div class="stepDot current"></div>
+                <div class="stepDot"></div>
+                <div class="stepDot"></div>
+                <div class="stepDot"></div>
+              </div>
+            </div>
+
             <div id="senderPane" class="pane hidden">
               <div id="drop" class="drop">
                 <div class="dropTitle">{t.room.dropTitle}</div>

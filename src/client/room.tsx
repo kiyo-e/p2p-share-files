@@ -94,6 +94,7 @@ function RoomApp({ roomId, maxConcurrent }: RoomAppProps) {
   const [recvProgress, setRecvProgress] = useState({ got: 0, total: 0 });
   const [download, setDownload] = useState<DownloadInfo | null>(null);
   const [dropHover, setDropHover] = useState(false);
+  const [toastVisible, setToastVisible] = useState(false);
 
   const roleRef = useRef<RoomRole>(role);
   const peersRef = useRef(peers);
@@ -135,13 +136,27 @@ function RoomApp({ roomId, maxConcurrent }: RoomAppProps) {
     }
   }, []);
 
+  const toastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showToast = useCallback(() => {
+    if (toastTimeoutRef.current) {
+      clearTimeout(toastTimeoutRef.current);
+    }
+    setToastVisible(true);
+    toastTimeoutRef.current = setTimeout(() => {
+      setToastVisible(false);
+    }, 2000);
+  }, []);
+
   const handleCopyLink = useCallback(() => {
     copyText(location.href);
-  }, []);
+    showToast();
+  }, [showToast]);
 
   const handleCopyCode = useCallback(() => {
     copyText(roomId);
-  }, [roomId]);
+    showToast();
+  }, [roomId, showToast]);
 
   const handleDragOver = useCallback((ev: DragEvent) => {
     ev.preventDefault();
@@ -682,6 +697,76 @@ function RoomApp({ roomId, maxConcurrent }: RoomAppProps) {
 
   const showSendProgress = sendProgress.total > 0;
 
+  // Step guide logic
+  // Note: peers count includes self, so peers > 1 means someone else is connected
+  const maxStepRef = useRef(1);
+
+  const guideState = useMemo(() => {
+    type GuideState = { step: number; main: string; sub: string; waiting: boolean; complete: boolean };
+
+    const receiverSteps: Record<number, GuideState> = {
+      1: { step: 1, main: t.guide.receiverConnecting, sub: t.guide.receiverConnectingSub, waiting: true, complete: false },
+      2: { step: 2, main: t.guide.receiverWaitFile, sub: t.guide.receiverWaitFileSub, waiting: true, complete: false },
+      3: { step: 3, main: t.guide.receiverReceiving, sub: t.guide.receiverReceivingSub, waiting: false, complete: false },
+      4: { step: 4, main: t.guide.receiverComplete, sub: t.guide.receiverCompleteSub, waiting: false, complete: true },
+    };
+
+    if (role === "offerer") {
+      // Sender: determine current step based on state
+      let currentStep = 1;
+      let state: GuideState;
+
+      if (sendProgress.sent > 0 && sendProgress.sent >= sendProgress.total && sendProgress.total > 0) {
+        currentStep = 4;
+        state = { step: 4, main: t.guide.senderComplete, sub: t.guide.senderCompleteSub, waiting: false, complete: true };
+      } else if (sendProgress.total > 0) {
+        currentStep = 3;
+        state = { step: 3, main: t.guide.senderSending, sub: t.guide.senderSendingSub, waiting: false, complete: false };
+      } else if (peers > 1 && selectedFile) {
+        // File selected and peer connected - ready to send
+        currentStep = 3;
+        state = { step: 3, main: t.guide.senderReadyToSend, sub: t.guide.senderReadyToSendSub, waiting: false, complete: false };
+      } else if (peers > 1) {
+        // Peer connected but no file yet
+        currentStep = 2;
+        state = { step: 2, main: t.guide.senderSelectFile, sub: t.guide.senderSelectFileSub, waiting: false, complete: false };
+      } else {
+        // Waiting for peer
+        currentStep = 1;
+        state = { step: 1, main: t.guide.senderShareLink, sub: t.guide.senderShareLinkSub, waiting: true, complete: false };
+      }
+
+      // Never go back in step number
+      if (currentStep > maxStepRef.current) {
+        maxStepRef.current = currentStep;
+      }
+      // But always show current state's content (for file selection feedback)
+      return { ...state, step: Math.max(state.step, maxStepRef.current) };
+    }
+
+    if (role === "answerer") {
+      // Receiver steps: 1=connecting, 2=wait file, 3=receiving, 4=complete
+      let currentStep = 2;
+      if (download) {
+        currentStep = 4;
+      } else if (recvProgress.total > 0) {
+        currentStep = 3;
+      }
+      // Never go back
+      if (currentStep > maxStepRef.current) {
+        maxStepRef.current = currentStep;
+      }
+      return receiverSteps[maxStepRef.current];
+    }
+
+    // Initial connecting state (before role is assigned)
+    return receiverSteps[1];
+  }, [role, peers, sendProgress, recvProgress, download, selectedFile]);
+
+  const stepLabel = t.guide.stepLabel
+    .replace("{current}", String(guideState.step))
+    .replace("{total}", "4");
+
   return (
     <section id="roomView" class="card room">
       <div class="roomHeader">
@@ -711,6 +796,20 @@ function RoomApp({ roomId, maxConcurrent }: RoomAppProps) {
         </div>
 
         <div class="roomMain">
+          <div class={`stepGuide${guideState.waiting ? " waiting" : ""}${guideState.complete ? " complete" : ""}`}>
+            <div class="stepLabel">{stepLabel}</div>
+            <div class="stepMain">{guideState.main}</div>
+            <div class="stepSub">{guideState.sub}</div>
+            <div class="stepProgress">
+              {[1, 2, 3, 4].map((n) => (
+                <div
+                  key={n}
+                  class={`stepDot${n < guideState.step ? " done" : ""}${n === guideState.step ? " current" : ""}`}
+                />
+              ))}
+            </div>
+          </div>
+
           <div id="senderPane" class={`pane${showSender ? "" : " hidden"}`}>
             <div
               id="drop"
@@ -782,6 +881,7 @@ function RoomApp({ roomId, maxConcurrent }: RoomAppProps) {
           </div>
         </div>
       </div>
+      <div class={`toast${toastVisible ? " show" : ""}`}>{t.room.copied}</div>
     </section>
   );
 }
