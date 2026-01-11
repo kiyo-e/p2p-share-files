@@ -768,38 +768,51 @@ function RoomApp({ roomId, maxConcurrent }: RoomAppProps) {
     .replace("{total}", "4");
 
   return (
-    <section id="roomView" class="card room">
-      <div class="roomHeader">
+    <section id="roomView" class={`card room${showReceiver ? " receiverMode" : ""}`}>
+      <div class={`roomHeader${showReceiver ? " compact" : ""}`}>
         <div class="roomTitle">
           <div class="eyebrow">{t.room.eyebrow}</div>
-          <h2>
-            {t.room.roomLabel} <span id="roomIdLabel" class="mono">{roomId}</span>
-          </h2>
+          {showReceiver ? (
+            <div class="roomIdCompact">
+              <span class="mono muted small">{t.room.roomLabel} {roomId}</span>
+            </div>
+          ) : (
+            <h2>
+              {t.room.roomLabel} <span id="roomIdLabel" class="mono">{roomId}</span>
+            </h2>
+          )}
           <div id="status" class="status">{status}</div>
         </div>
-        <div class="right">
-          <button id="copyLinkBtn" class="btn" onClick={handleCopyLink} title={t.room.copyLinkHint}>{t.room.copyLink}</button>
-          <button id="copyCodeBtn" class="btn" onClick={handleCopyCode} title={t.room.copyCodeHint}>{t.room.copyCode}</button>
-        </div>
+        {showSender && (
+          <div class="right">
+            <button id="copyLinkBtn" class="btn" onClick={handleCopyLink} title={t.room.copyLinkHint}>{t.room.copyLink}</button>
+            <button id="copyCodeBtn" class="btn" onClick={handleCopyCode} title={t.room.copyCodeHint}>{t.room.copyCode}</button>
+          </div>
+        )}
       </div>
 
-      <div class="roomGrid">
-        <div class="roomSide">
-          <div class="kv">
-            <div class="k">{t.room.roleLabel}</div>
-            <div class="v" id="roleLabel">{roleLabel}</div>
-            <div class="k">{t.room.peersLabel}</div>
-            <div class="v" id="peersLabel">{peersLabel}</div>
+      <div class={`roomGrid${showReceiver ? " receiverLayout" : ""}`}>
+        {showReceiver ? (
+          <div class="roomSideCompact">
+            <span class="muted small">{roleLabel}</span>
+            <span class="sideDot"></span>
+            <span class="muted small">{t.room.peersLabel} {peersLabel}</span>
           </div>
-          <div class="sideCard muted small">{t.room.encryptHint}</div>
-          <div class="sideCard muted small">{maxConcurrentLabel}</div>
-        </div>
+        ) : (
+          <div class="roomSide">
+            <div class="kv">
+              <div class="k">{t.room.roleLabel}</div>
+              <div class="v" id="roleLabel">{roleLabel}</div>
+              <div class="k">{t.room.peersLabel}</div>
+              <div class="v" id="peersLabel">{peersLabel}</div>
+            </div>
+            <div class="sideCard muted small">{t.room.encryptHint}</div>
+            <div class="sideCard muted small">{maxConcurrentLabel}</div>
+          </div>
+        )}
 
         <div class="roomMain">
-          <div class={`stepGuide${guideState.waiting ? " waiting" : ""}${guideState.complete ? " complete" : ""}`}>
-            <div class="stepLabel">{stepLabel}</div>
-            <div class="stepMain">{guideState.main}</div>
-            <div class="stepSub">{guideState.sub}</div>
+          <div class={`stepGuide${guideState.waiting ? " waiting" : ""}${guideState.complete ? " complete" : ""}${showReceiver ? " receiverGuide" : ""}`}>
             <div class="stepProgress">
               {[1, 2, 3, 4].map((n) => (
                 <div
@@ -808,6 +821,9 @@ function RoomApp({ roomId, maxConcurrent }: RoomAppProps) {
                 />
               ))}
             </div>
+            <div class="stepLabel">{stepLabel}</div>
+            <div class="stepMain">{guideState.main}</div>
+            <div class="stepSub">{guideState.sub}</div>
           </div>
 
           <div id="senderPane" class={`pane${showSender ? "" : " hidden"}`}>
