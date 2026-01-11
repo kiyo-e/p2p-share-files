@@ -6,11 +6,31 @@ import { detectLocale, getTranslations, supportedLocales, type Locale } from "./
 
 type Bindings = CloudflareBindings & {
   ROOM: DurableObjectNamespace;
+  ROOM_RATE_LIMITER: RateLimit;
 };
 
 const app = new Hono<{ Bindings: Bindings }>();
 
 app.use("*", jsxRenderer());
+
+const DEFAULT_MAX_CONCURRENT = 3;
+const MAX_MAX_CONCURRENT = 10;
+
+function normalizeMaxConcurrent(value?: number) {
+  const base = Number.isFinite(value) ? Math.floor(value!) : DEFAULT_MAX_CONCURRENT;
+  return Math.min(MAX_MAX_CONCURRENT, Math.max(1, base));
+}
+
+app.use("/api/rooms", async (c, next) => {
+  if (c.req.method !== "POST") return next();
+  const ip = c.req.header("cf-connecting-ip") ?? "unknown";
+  const key = `create-room:${ip}`;
+  const outcome = await c.env.ROOM_RATE_LIMITER.limit({ key });
+  if (!outcome.success) {
+    return c.text("Rate limit exceeded", 429);
+  }
+  return next();
+});
 
 function getLocaleFromRequest(c: { req: { header: (name: string) => string | undefined; query: (name: string) => string | undefined } }): Locale {
   // Check query parameter first (for language switcher)
@@ -28,15 +48,20 @@ app.get("/", (c) => {
   return c.render(<TopPage t={t} locale={locale} />);
 });
 
-app.get("/r/:roomId", (c) => {
+app.get("/r/:roomId", async (c) => {
   const locale = getLocaleFromRequest(c);
   const t = getTranslations(locale);
-  return c.render(<RoomPage roomId={c.req.param("roomId")} t={t} locale={locale} />);
+  const roomId = c.req.param("roomId");
+  const id = c.env.ROOM.idFromName(roomId);
+  const stub = c.env.ROOM.get(id);
+  const config = (await stub.fetch("https://room/config").then((res) => res.json())) as { maxConcurrent?: number };
+  const maxConcurrent = normalizeMaxConcurrent(config.maxConcurrent);
+  return c.render(<RoomPage roomId={roomId} maxConcurrent={maxConcurrent} t={t} locale={locale} />);
 });
 
 app.post("/api/rooms", async (c) => {
   const body = (await c.req.json()) as { maxConcurrent?: number; creatorCid?: string };
-  const maxConcurrent = Number.isFinite(body.maxConcurrent) ? Math.max(1, Math.floor(body.maxConcurrent!)) : 3;
+  const maxConcurrent = normalizeMaxConcurrent(body.maxConcurrent);
   const creatorCid = typeof body.creatorCid === "string" ? body.creatorCid : undefined;
   const roomId = generateRoomId(10);
   const id = c.env.ROOM.idFromName(roomId);

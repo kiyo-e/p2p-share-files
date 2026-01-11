@@ -74,15 +74,18 @@ const t = getT();
 
 const root = document.querySelector("main.container");
 const roomId = document.body.dataset.roomId;
+const roomMaxConcurrent = Number.parseInt(document.body.dataset.maxConcurrent || "", 10);
+const maxConcurrent = Number.isFinite(roomMaxConcurrent) ? roomMaxConcurrent : 3;
 if (root && roomId && document.getElementById("roomView")) {
-  render(<RoomApp roomId={roomId} />, root);
+  render(<RoomApp roomId={roomId} maxConcurrent={maxConcurrent} />, root);
 }
 
 type RoomAppProps = {
   roomId: string;
+  maxConcurrent: number;
 };
 
-function RoomApp({ roomId }: RoomAppProps) {
+function RoomApp({ roomId, maxConcurrent }: RoomAppProps) {
   const [status, setStatus] = useState(t.status.initializing);
   const [role, setRole] = useState<RoomRole>(null);
   const [peers, setPeers] = useState(0);
@@ -91,6 +94,7 @@ function RoomApp({ roomId }: RoomAppProps) {
   const [recvProgress, setRecvProgress] = useState({ got: 0, total: 0 });
   const [download, setDownload] = useState<DownloadInfo | null>(null);
   const [dropHover, setDropHover] = useState(false);
+  const [toastVisible, setToastVisible] = useState(false);
 
   const roleRef = useRef<RoomRole>(role);
   const peersRef = useRef(peers);
@@ -132,13 +136,27 @@ function RoomApp({ roomId }: RoomAppProps) {
     }
   }, []);
 
+  const toastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showToast = useCallback(() => {
+    if (toastTimeoutRef.current) {
+      clearTimeout(toastTimeoutRef.current);
+    }
+    setToastVisible(true);
+    toastTimeoutRef.current = setTimeout(() => {
+      setToastVisible(false);
+    }, 2000);
+  }, []);
+
   const handleCopyLink = useCallback(() => {
     copyText(location.href);
-  }, []);
+    showToast();
+  }, [showToast]);
 
   const handleCopyCode = useCallback(() => {
     copyText(roomId);
-  }, [roomId]);
+    showToast();
+  }, [roomId, showToast]);
 
   const handleDragOver = useCallback((ev: DragEvent) => {
     ev.preventDefault();
@@ -511,6 +529,9 @@ function RoomApp({ roomId }: RoomAppProps) {
         if (msg.type === "peers") {
           peersRef.current = msg.count;
           setPeers(msg.count);
+          if (roleRef.current === "offerer" && msg.count > 0) {
+            setStatus(t.status.waitingSenderReady);
+          }
           return;
         }
 
@@ -523,6 +544,9 @@ function RoomApp({ roomId }: RoomAppProps) {
 
         if (msg.type === "start") {
           if (roleRef.current === "offerer" && msg.peerId) {
+            if (offererPeersRef.current.has(msg.peerId)) {
+              closeOffererPeer(msg.peerId);
+            }
             const peer = createOffererPeer(msg.peerId);
             await sendOffer(peer);
             return;
@@ -631,7 +655,7 @@ function RoomApp({ roomId }: RoomAppProps) {
     return t.role.unknown;
   }, [role]);
 
-  const peersLabel = useMemo(() => String(peers), [peers]);
+  const peersLabel = useMemo(() => `${peers}${t.room.peersUnit}`, [peers]);
 
   const sendPct = useMemo(
     () => progressPercent(sendProgress.sent, sendProgress.total),
@@ -656,9 +680,92 @@ function RoomApp({ roomId }: RoomAppProps) {
     return `${selectedFile.name} (${formatBytes(selectedFile.size)})`;
   }, [selectedFile]);
 
+  const maxConcurrentLabel = useMemo(
+    () => t.room.maxConcurrentLimit.replace("{max}", String(maxConcurrent)),
+    [maxConcurrent]
+  );
+
   const canSend = role === "offerer" && !!selectedFile;
   const showSender = role === "offerer";
   const showReceiver = role === "answerer";
+
+  const sendHint = useMemo(() => {
+    if (!selectedFile) return t.room.sendHintNoFile;
+    if (peers === 0) return t.room.sendHintNoPeer;
+    return t.room.sendHintReady;
+  }, [selectedFile, peers]);
+
+  const showSendProgress = sendProgress.total > 0;
+
+  // Step guide logic
+  // Note: peers count includes self, so peers > 1 means someone else is connected
+  const maxStepRef = useRef(1);
+
+  const guideState = useMemo(() => {
+    type GuideState = { step: number; main: string; sub: string; waiting: boolean; complete: boolean };
+
+    const receiverSteps: Record<number, GuideState> = {
+      1: { step: 1, main: t.guide.receiverConnecting, sub: t.guide.receiverConnectingSub, waiting: true, complete: false },
+      2: { step: 2, main: t.guide.receiverWaitFile, sub: t.guide.receiverWaitFileSub, waiting: true, complete: false },
+      3: { step: 3, main: t.guide.receiverReceiving, sub: t.guide.receiverReceivingSub, waiting: false, complete: false },
+      4: { step: 4, main: t.guide.receiverComplete, sub: t.guide.receiverCompleteSub, waiting: false, complete: true },
+    };
+
+    if (role === "offerer") {
+      // Sender: determine current step based on state
+      let currentStep = 1;
+      let state: GuideState;
+
+      if (sendProgress.sent > 0 && sendProgress.sent >= sendProgress.total && sendProgress.total > 0) {
+        currentStep = 4;
+        state = { step: 4, main: t.guide.senderComplete, sub: t.guide.senderCompleteSub, waiting: false, complete: true };
+      } else if (sendProgress.total > 0) {
+        currentStep = 3;
+        state = { step: 3, main: t.guide.senderSending, sub: t.guide.senderSendingSub, waiting: false, complete: false };
+      } else if (peers > 1 && selectedFile) {
+        // File selected and peer connected - ready to send
+        currentStep = 3;
+        state = { step: 3, main: t.guide.senderReadyToSend, sub: t.guide.senderReadyToSendSub, waiting: false, complete: false };
+      } else if (peers > 1) {
+        // Peer connected but no file yet
+        currentStep = 2;
+        state = { step: 2, main: t.guide.senderSelectFile, sub: t.guide.senderSelectFileSub, waiting: false, complete: false };
+      } else {
+        // Waiting for peer
+        currentStep = 1;
+        state = { step: 1, main: t.guide.senderShareLink, sub: t.guide.senderShareLinkSub, waiting: true, complete: false };
+      }
+
+      // Never go back in step number
+      if (currentStep > maxStepRef.current) {
+        maxStepRef.current = currentStep;
+      }
+      // But always show current state's content (for file selection feedback)
+      return { ...state, step: Math.max(state.step, maxStepRef.current) };
+    }
+
+    if (role === "answerer") {
+      // Receiver steps: 1=connecting, 2=wait file, 3=receiving, 4=complete
+      let currentStep = 2;
+      if (download) {
+        currentStep = 4;
+      } else if (recvProgress.total > 0) {
+        currentStep = 3;
+      }
+      // Never go back
+      if (currentStep > maxStepRef.current) {
+        maxStepRef.current = currentStep;
+      }
+      return receiverSteps[maxStepRef.current];
+    }
+
+    // Initial connecting state (before role is assigned)
+    return receiverSteps[1];
+  }, [role, peers, sendProgress, recvProgress, download, selectedFile]);
+
+  const stepLabel = t.guide.stepLabel
+    .replace("{current}", String(guideState.step))
+    .replace("{total}", "4");
 
   return (
     <section id="roomView" class="card room">
@@ -671,8 +778,8 @@ function RoomApp({ roomId }: RoomAppProps) {
           <div id="status" class="status">{status}</div>
         </div>
         <div class="right">
-          <button id="copyLinkBtn" class="btn" onClick={handleCopyLink}>{t.room.copyLink}</button>
-          <button id="copyCodeBtn" class="btn" onClick={handleCopyCode}>{t.room.copyCode}</button>
+          <button id="copyLinkBtn" class="btn" onClick={handleCopyLink} title={t.room.copyLinkHint}>{t.room.copyLink}</button>
+          <button id="copyCodeBtn" class="btn" onClick={handleCopyCode} title={t.room.copyCodeHint}>{t.room.copyCode}</button>
         </div>
       </div>
 
@@ -685,9 +792,24 @@ function RoomApp({ roomId }: RoomAppProps) {
             <div class="v" id="peersLabel">{peersLabel}</div>
           </div>
           <div class="sideCard muted small">{t.room.encryptHint}</div>
+          <div class="sideCard muted small">{maxConcurrentLabel}</div>
         </div>
 
         <div class="roomMain">
+          <div class={`stepGuide${guideState.waiting ? " waiting" : ""}${guideState.complete ? " complete" : ""}`}>
+            <div class="stepLabel">{stepLabel}</div>
+            <div class="stepMain">{guideState.main}</div>
+            <div class="stepSub">{guideState.sub}</div>
+            <div class="stepProgress">
+              {[1, 2, 3, 4].map((n) => (
+                <div
+                  key={n}
+                  class={`stepDot${n < guideState.step ? " done" : ""}${n === guideState.step ? " current" : ""}`}
+                />
+              ))}
+            </div>
+          </div>
+
           <div id="senderPane" class={`pane${showSender ? "" : " hidden"}`}>
             <div
               id="drop"
@@ -705,37 +827,43 @@ function RoomApp({ roomId }: RoomAppProps) {
             </div>
 
             <div class="row gap wrap">
-              <button id="sendBtn" class="btn primary" disabled={!canSend} onClick={handleSend}>
+              <button id="sendBtn" class="btn primary" disabled={!canSend} onClick={handleSend} title={sendHint}>
                 {t.room.send}
               </button>
-              <div class="muted small" id="fileInfo">{selectedFileLabel}</div>
+              <div class="muted small" id="fileInfo">{selectedFileLabel || sendHint}</div>
             </div>
 
-            <div class="progress">
-              <div class="bar">
-                <div
-                  id="sendBar"
-                  class="fill"
-                  style={{ width: `${sendPct}%` }}
-                ></div>
+            {showSendProgress && (
+              <div class="progress">
+                <div class="bar">
+                  <div
+                    id="sendBar"
+                    class="fill"
+                    style={{ width: `${sendPct}%` }}
+                  ></div>
+                </div>
+                <div class="muted small" id="sendText">{sendText}</div>
               </div>
-              <div class="muted small" id="sendText">{sendText}</div>
-            </div>
+            )}
           </div>
 
           <div id="receiverPane" class={`pane${showReceiver ? "" : " hidden"}`}>
-            <div class="muted">{t.room.waiting}</div>
+            {!recvProgress.total && !download && (
+              <div class="muted">{t.room.waiting}</div>
+            )}
 
-            <div class="progress">
-              <div class="bar">
-                <div
-                  id="recvBar"
-                  class="fill"
-                  style={{ width: `${recvPct}%` }}
-                ></div>
+            {recvProgress.total > 0 && (
+              <div class="progress">
+                <div class="bar">
+                  <div
+                    id="recvBar"
+                    class="fill"
+                    style={{ width: `${recvPct}%` }}
+                  ></div>
+                </div>
+                <div class="muted small" id="recvText">{recvText}</div>
               </div>
-              <div class="muted small" id="recvText">{recvText}</div>
-            </div>
+            )}
 
             <div id="downloadArea" class={download ? "" : "hidden"}>
               <a
@@ -753,6 +881,7 @@ function RoomApp({ roomId }: RoomAppProps) {
           </div>
         </div>
       </div>
+      <div class={`toast${toastVisible ? " show" : ""}`}>{t.room.copied}</div>
     </section>
   );
 }

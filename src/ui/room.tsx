@@ -9,16 +9,19 @@ import type { Translations, Locale } from "../i18n";
 
 type RoomPageProps = {
   roomId: string;
+  maxConcurrent: number;
   t: Translations;
   locale: Locale;
 };
 
-export function RoomPage({ roomId, t, locale }: RoomPageProps) {
+export function RoomPage({ roomId, maxConcurrent, t, locale }: RoomPageProps) {
+  const maxConcurrentLabel = t.room.maxConcurrentLimit.replace("{max}", String(maxConcurrent));
+  const initialStepLabel = t.guide.stepLabel.replace("{current}", "1").replace("{total}", "4");
   return (
     <Layout
       title={t.title}
       scripts={<Script src="/src/client/room.tsx" />}
-      bodyAttrs={{ "data-room-id": roomId }}
+      bodyAttrs={{ "data-room-id": roomId, "data-max-concurrent": String(maxConcurrent) }}
       t={t}
       locale={locale}
     >
@@ -30,8 +33,8 @@ export function RoomPage({ roomId, t, locale }: RoomPageProps) {
             <div id="status" class="status">{t.status.initializing}</div>
           </div>
           <div class="right">
-            <button id="copyLinkBtn" class="btn">{t.room.copyLink}</button>
-            <button id="copyCodeBtn" class="btn">{t.room.copyCode}</button>
+            <button id="copyLinkBtn" class="btn" title={t.room.copyLinkHint}>{t.room.copyLink}</button>
+            <button id="copyCodeBtn" class="btn" title={t.room.copyCodeHint}>{t.room.copyCode}</button>
           </div>
         </div>
 
@@ -41,12 +44,25 @@ export function RoomPage({ roomId, t, locale }: RoomPageProps) {
               <div class="k">{t.room.roleLabel}</div>
               <div class="v" id="roleLabel">{t.role.unknown}</div>
               <div class="k">{t.room.peersLabel}</div>
-              <div class="v" id="peersLabel">0</div>
+              <div class="v" id="peersLabel">0{t.room.peersUnit}</div>
             </div>
             <div class="sideCard muted small">{t.room.encryptHint}</div>
+            <div class="sideCard muted small">{maxConcurrentLabel}</div>
           </div>
 
           <div class="roomMain">
+            <div class="stepGuide waiting">
+              <div class="stepLabel">{initialStepLabel}</div>
+              <div class="stepMain">{t.guide.receiverConnecting}</div>
+              <div class="stepSub">{t.guide.receiverConnectingSub}</div>
+              <div class="stepProgress">
+                <div class="stepDot current"></div>
+                <div class="stepDot"></div>
+                <div class="stepDot"></div>
+                <div class="stepDot"></div>
+              </div>
+            </div>
+
             <div id="senderPane" class="pane hidden">
               <div id="drop" class="drop">
                 <div class="dropTitle">{t.room.dropTitle}</div>

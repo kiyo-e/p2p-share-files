@@ -30,6 +30,51 @@ A P2P file sharing tool using WebRTC. Transfer files directly between browsers w
 - [Vite](https://vite.dev/) - SSR-enabled build tool
 - WebRTC - P2P data transfer
 
+## CLI (Rust)
+
+The `cli/` directory contains a Rust-based CLI that can send or receive files using the same WebRTC signaling flow, enabling browser ⇄ terminal and terminal ⇄ terminal transfers.
+
+### Supported Platforms
+
+- **Linux** (x86_64)
+- **macOS** (Intel / Apple Silicon)
+
+Builds are automatically tested via GitHub Actions on push/PR to the `cli/` directory.
+
+```sh
+cd cli
+cargo run --release -- send /path/to/file
+cargo run --release -- receive <ROOM_ID_OR_URL> --output-dir ./downloads
+```
+
+Encrypted transfers are enabled by default for `send`. The command prints a room URL with `#k=...` that you can pass directly to `receive`:
+
+```sh
+cargo run --release -- send /path/to/file
+cargo run --release -- receive "https://share-files.karakuri-maker.com/r/ROOM#k=..."
+```
+
+To disable encryption for `send`, pass `--no-encrypt`.
+
+If you want to provide the decryption key explicitly, pass `--key` (base64url) to `receive`:
+
+```sh
+cargo run --release -- receive <ROOM_ID> --key <BASE64URL_KEY> --output-dir ./downloads
+```
+
+By default, `send` and `receive` exit after a successful transfer. Use `--stay-open` to keep the process running for additional transfers.
+
+Note: URLs with `#k=...` should be quoted in the shell. Legacy flags `--file` and `--room-id` are still accepted.
+
+By default it connects to the demo endpoint. Override it with the `SHARE_FILES_ENDPOINT` environment variable:
+
+```sh
+SHARE_FILES_ENDPOINT=https://share-files.karakuri-maker.com \
+  cargo run --release -- send /path/to/file
+```
+
+You can also provide `--room-id` explicitly if you want to join an existing room.
+
 ## Prerequisites
 
 - [Bun](https://bun.sh/) runtime

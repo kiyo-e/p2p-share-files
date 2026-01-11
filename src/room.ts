@@ -33,6 +33,12 @@ type RoomConfig = {
 };
 
 const DEFAULT_MAX_CONCURRENT = 3;
+const MAX_MAX_CONCURRENT = 10;
+
+function normalizeMaxConcurrent(value?: number) {
+  const base = Number.isFinite(value) ? Math.floor(value!) : DEFAULT_MAX_CONCURRENT;
+  return Math.min(MAX_MAX_CONCURRENT, Math.max(1, base));
+}
 
 function toText(message: ArrayBuffer | string) {
   return typeof message === "string" ? message : new TextDecoder().decode(message);
@@ -60,6 +66,7 @@ export class Room extends DurableObjectBase {
   // Design: README.md (multi-receiver queue); related: src/index.tsx routes and src/client/room.tsx signaling.
   private ctx: DurableObjectState;
   private config: RoomConfig | null = null;
+  private activePairs = new Map<string, string>();
   constructor(state: DurableObjectState, env: Bindings) {
     super(state, env);
     this.ctx = state;
@@ -69,16 +76,19 @@ export class Room extends DurableObjectBase {
     const url = new URL(request.url);
 
     if (url.pathname === "/config") {
-      if (request.method !== "POST") {
-        return new Response("Expected POST", { status: 400 });
+      if (request.method === "POST") {
+        const body = (await request.json()) as { maxConcurrent?: number; creatorCid?: string };
+        const maxConcurrent = normalizeMaxConcurrent(body.maxConcurrent);
+        const creatorCid = typeof body.creatorCid === "string" ? body.creatorCid : undefined;
+        this.config = { maxConcurrent, creatorCid };
+        await this.ctx.storage.put("config", this.config);
+        return new Response("OK");
       }
-      const body = (await request.json()) as { maxConcurrent?: number; creatorCid?: string };
-      const max = Number.isFinite(body.maxConcurrent) ? Math.floor(body.maxConcurrent!) : DEFAULT_MAX_CONCURRENT;
-      const maxConcurrent = Math.max(1, max);
-      const creatorCid = typeof body.creatorCid === "string" ? body.creatorCid : undefined;
-      this.config = { maxConcurrent, creatorCid };
-      await this.ctx.storage.put("config", this.config);
-      return new Response("OK");
+      if (request.method === "GET") {
+        await this.ensureConfig();
+        return Response.json(this.config ?? { maxConcurrent: DEFAULT_MAX_CONCURRENT });
+      }
+      return new Response("Expected POST or GET", { status: 400 });
     }
 
     const upgrade = request.headers.get("Upgrade");
@@ -112,9 +122,9 @@ export class Room extends DurableObjectBase {
     this.ctx.acceptWebSocket(server);
     server.serializeAttachment(attachment);
 
-    server.send(JSON.stringify({ type: "role", role, cid: clientId } satisfies ServerToClient));
+    this.sendJson(server, { type: "role", role, cid: clientId });
     if (role === "answerer") {
-      server.send(JSON.stringify({ type: "wait" } satisfies ServerToClient));
+      this.sendJson(server, { type: "wait" });
     }
 
     this.broadcastPeers();
@@ -146,6 +156,23 @@ export class Room extends DurableObjectBase {
     }
 
     if (msg.type === "offer" || msg.type === "answer" || msg.type === "candidate") {
+      if (msg.type === "offer") {
+        if (attachment.role !== "offerer") return;
+        if (this.activePairs.get(msg.to) !== attachment.cid) return;
+      }
+      if (msg.type === "answer") {
+        if (attachment.role !== "answerer") return;
+        if (this.activePairs.get(attachment.cid) !== msg.to) return;
+      }
+      if (msg.type === "candidate") {
+        if (attachment.role === "offerer") {
+          if (this.activePairs.get(msg.to) !== attachment.cid) return;
+        } else if (attachment.role === "answerer") {
+          if (this.activePairs.get(attachment.cid) !== msg.to) return;
+        } else {
+          return;
+        }
+      }
       const target = this.socketByCid(msg.to);
       if (!target) return;
 
@@ -156,7 +183,7 @@ export class Room extends DurableObjectBase {
             ? { type: "answer", from: attachment.cid, sid: msg.sid, sdp: msg.sdp }
             : { type: "candidate", from: attachment.cid, sid: msg.sid, candidate: msg.candidate };
 
-      target.send(JSON.stringify(payload satisfies ServerToClient));
+      this.sendJson(target, payload);
     }
   }
 
@@ -165,17 +192,31 @@ export class Room extends DurableObjectBase {
     log("[room] webSocketClose, cid:", attachment?.cid, "role:", attachment?.role);
 
     if (attachment?.role === "answerer") {
+      const hasReplacement = attachment.cid && this.hasOpenSocket(attachment.cid, "answerer");
+      if (hasReplacement) {
+        this.broadcastPeers();
+        return;
+      }
+      if (attachment.cid) {
+        this.activePairs.delete(attachment.cid);
+      }
       const offerer = this.getOffererSocket();
       if (offerer && attachment.cid) {
-        offerer.send(JSON.stringify({ type: "peer-left", peerId: attachment.cid } satisfies ServerToClient));
+        this.sendJson(offerer, { type: "peer-left", peerId: attachment.cid });
       }
       this.fillSlots();
     }
 
     if (attachment?.role === "offerer") {
+      const hasReplacement = attachment.cid && this.hasOpenSocket(attachment.cid, "offerer");
+      if (hasReplacement) {
+        this.broadcastPeers();
+        return;
+      }
+      this.activePairs.clear();
       for (const socket of this.answererSockets()) {
         this.setAnswererState(socket, "waiting");
-        socket.send(JSON.stringify({ type: "wait" } satisfies ServerToClient));
+        this.sendJson(socket, { type: "wait" });
       }
     }
 
@@ -190,7 +231,10 @@ export class Room extends DurableObjectBase {
     if (this.config) return this.config;
     const stored = await this.ctx.storage.get<RoomConfig>("config");
     if (stored?.maxConcurrent) {
-      this.config = stored;
+      this.config = {
+        ...stored,
+        maxConcurrent: normalizeMaxConcurrent(stored.maxConcurrent),
+      };
     } else {
       this.config = { maxConcurrent: DEFAULT_MAX_CONCURRENT };
     }
@@ -198,9 +242,9 @@ export class Room extends DurableObjectBase {
   }
 
   private broadcastPeers() {
-    const count = this.ctx.getWebSockets().length;
-    const payload = JSON.stringify({ type: "peers", count } satisfies ServerToClient);
-    for (const socket of this.ctx.getWebSockets()) socket.send(payload);
+    const sockets = this.openSockets();
+    const payload = JSON.stringify({ type: "peers", count: sockets.length } satisfies ServerToClient);
+    for (const socket of sockets) this.sendText(socket, payload);
   }
 
   private pickRole(clientId: string) {
@@ -214,7 +258,7 @@ export class Room extends DurableObjectBase {
   }
 
   private getOffererSocket() {
-    for (const socket of this.ctx.getWebSockets()) {
+    for (const socket of this.openSockets()) {
       const attachment = socket.deserializeAttachment() as SocketAttachment | null;
       if (attachment?.role === "offerer") return socket;
     }
@@ -223,7 +267,7 @@ export class Room extends DurableObjectBase {
 
   private answererSockets() {
     const out: WebSocket[] = [];
-    for (const socket of this.ctx.getWebSockets()) {
+    for (const socket of this.openSockets()) {
       const attachment = socket.deserializeAttachment() as SocketAttachment | null;
       if (attachment?.role === "answerer") out.push(socket);
     }
@@ -231,7 +275,7 @@ export class Room extends DurableObjectBase {
   }
 
   private socketByCid(cid: string) {
-    for (const socket of this.ctx.getWebSockets()) {
+    for (const socket of this.openSockets()) {
       const attachment = socket.deserializeAttachment() as SocketAttachment | null;
       if (attachment?.cid === cid) return socket;
     }
@@ -248,6 +292,9 @@ export class Room extends DurableObjectBase {
   private fillSlots() {
     const offerer = this.getOffererSocket();
     if (!offerer) return;
+    const offererAttachment = offerer.deserializeAttachment() as SocketAttachment | null;
+    const offererCid = offererAttachment?.cid;
+    if (!offererCid) return;
 
     const maxConcurrent = this.config?.maxConcurrent ?? DEFAULT_MAX_CONCURRENT;
 
@@ -275,18 +322,48 @@ export class Room extends DurableObjectBase {
       const attachment = socket.deserializeAttachment() as SocketAttachment | null;
       if (!attachment) continue;
       this.setAnswererState(socket, "active");
-      socket.send(JSON.stringify({ type: "start" } satisfies ServerToClient));
-      offerer.send(JSON.stringify({ type: "start", peerId: attachment.cid } satisfies ServerToClient));
+      if (attachment.cid) {
+        this.activePairs.set(attachment.cid, offererCid);
+      }
+      this.sendJson(socket, { type: "start" });
+      this.sendJson(offerer, { type: "start", peerId: attachment.cid });
     }
   }
 
-  private closeDuplicateClient(clientId: string) {
+  private closeDuplicateClient(clientId: string, keepSocket?: WebSocket) {
     for (const socket of this.ctx.getWebSockets()) {
+      if (keepSocket && socket === keepSocket) continue;
       const attachment = socket.deserializeAttachment() as SocketAttachment | null;
       if (attachment?.cid === clientId) {
         log("[room] closing duplicate client, cid:", clientId, "role:", attachment.role);
-        socket.close(1000, "replaced");
+        if (socket.readyState === WebSocket.OPEN) {
+          socket.close(1000, "replaced");
+        }
       }
     }
+  }
+
+  private openSockets() {
+    return this.ctx.getWebSockets().filter((socket) => socket.readyState === WebSocket.OPEN);
+  }
+
+  private hasOpenSocket(cid: string, role?: Role) {
+    for (const socket of this.openSockets()) {
+      const attachment = socket.deserializeAttachment() as SocketAttachment | null;
+      if (!attachment || attachment.cid !== cid) continue;
+      if (role && attachment.role !== role) continue;
+      return true;
+    }
+    return false;
+  }
+
+  private sendJson(socket: WebSocket, payload: ServerToClient) {
+    if (socket.readyState !== WebSocket.OPEN) return;
+    socket.send(JSON.stringify(payload));
+  }
+
+  private sendText(socket: WebSocket, payload: string) {
+    if (socket.readyState !== WebSocket.OPEN) return;
+    socket.send(payload);
   }
 }

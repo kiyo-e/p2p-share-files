@@ -16,6 +16,7 @@ public/assets/
 # deps
 node_modules/
 .wrangler
+cli/target/
 
 # env
 .env
