@@ -882,4 +882,33 @@ input[type="checkbox"] {
   .receiverMode .roomMain {
     padding: 16px;
   }
+
+  /* Compact site header for receiver on mobile */
+  body.receiverMode .topbar {
+    flex-direction: row;
+    align-items: center;
+    padding: 8px 16px;
+    gap: 8px;
+  }
+
+  body.receiverMode .topbar .brand {
+    font-size: 16px;
+  }
+
+  body.receiverMode .topbar .sub {
+    display: none;
+  }
+
+  body.receiverMode .topbar .langSwitcher {
+    margin-left: auto;
+  }
+
+  body.receiverMode .topbar .langBtn {
+    padding: 4px 8px;
+    font-size: 10px;
+  }
+
+  body.receiverMode .container {
+    padding: 16px;
+  }
 }

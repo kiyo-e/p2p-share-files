@@ -119,6 +119,12 @@ function RoomApp({ roomId, maxConcurrent }: RoomAppProps) {
 
   useEffect(() => {
     roleRef.current = role;
+    // Add body class for receiver mode styling (affects header etc.)
+    if (role === "answerer") {
+      document.body.classList.add("receiverMode");
+    } else {
+      document.body.classList.remove("receiverMode");
+    }
   }, [role]);
 
   useEffect(() => {
