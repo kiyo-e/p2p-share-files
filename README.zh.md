@@ -60,7 +60,7 @@ cargo run --release -- receive <ROOM_ID_OR_URL> --output-dir ./downloads
 
 ```sh
 npx pairlane send /path/to/file
-npx pairlane receive "https://getpairlane.com/r/ROOM#k=..."
+npx pairlane receive "https://getpairlane.com/r/<ROOM_ID>#k=<BASE64URL_KEY>"
 ```
 
 要禁用加密，请使用 `--no-encrypt`。
