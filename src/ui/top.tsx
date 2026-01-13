@@ -10,15 +10,17 @@ import type { Translations, Locale } from "../i18n";
 type TopPageProps = {
   t: Translations;
   locale: Locale;
+  url?: string;
 };
 
-export function TopPage({ t, locale }: TopPageProps) {
+export function TopPage({ t, locale, url }: TopPageProps) {
   return (
     <Layout
       title={t.title}
       scripts={<Script src="/src/client/home.tsx" />}
       t={t}
       locale={locale}
+      url={url}
     >
       <section id="homeView" class="card home">
         <div class="homeGrid">

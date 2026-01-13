@@ -69,7 +69,7 @@ app.get("/", (c) => {
   const { locale, source } = getLocaleFromRequest(c);
   if (source === "query") persistLocaleCookie(c, locale);
   const t = getTranslations(locale);
-  return c.render(<TopPage t={t} locale={locale} />);
+  return c.render(<TopPage t={t} locale={locale} url={c.req.url} />);
 });
 
 app.get("/r/:roomId", async (c) => {
@@ -81,7 +81,7 @@ app.get("/r/:roomId", async (c) => {
   const stub = c.env.ROOM.get(id);
   const config = (await stub.fetch("https://room/config").then((res) => res.json())) as { maxConcurrent?: number };
   const maxConcurrent = normalizeMaxConcurrent(config.maxConcurrent);
-  return c.render(<RoomPage roomId={roomId} maxConcurrent={maxConcurrent} t={t} locale={locale} />);
+  return c.render(<RoomPage roomId={roomId} maxConcurrent={maxConcurrent} t={t} locale={locale} url={c.req.url} />);
 });
 
 app.post("/api/rooms", async (c) => {

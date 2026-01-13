@@ -2,6 +2,7 @@
   "lang": "zh",
   "langName": "中文",
   "title": "PAIRLANE",
+  "description": "通过WebRTC在设备间直接传输文件。无需上传服务器，纯P2P传输。",
   "header": {
     "brand": "PAIR—LANE",
     "sub": "P2P / 1:N / WEBRTC"

@@ -12,9 +12,10 @@ type RoomPageProps = {
   maxConcurrent: number;
   t: Translations;
   locale: Locale;
+  url?: string;
 };
 
-export function RoomPage({ roomId, maxConcurrent, t, locale }: RoomPageProps) {
+export function RoomPage({ roomId, maxConcurrent, t, locale, url }: RoomPageProps) {
   const maxConcurrentLabel = t.room.maxConcurrentLimit.replace("{max}", String(maxConcurrent));
   const initialStepLabel = t.guide.stepLabel.replace("{current}", "1").replace("{total}", "4");
   return (
@@ -24,6 +25,7 @@ export function RoomPage({ roomId, maxConcurrent, t, locale }: RoomPageProps) {
       bodyAttrs={{ "data-room-id": roomId, "data-max-concurrent": String(maxConcurrent) }}
       t={t}
       locale={locale}
+      url={url}
     >
       <section id="roomView" class="card room">
         <div class="roomHeader">

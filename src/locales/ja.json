@@ -2,6 +2,7 @@
   "lang": "ja",
   "langName": "日本語",
   "title": "PAIRLANE",
+  "description": "WebRTCで端末間ダイレクト転送。サーバにアップロードせずP2Pで直接送信。",
   "header": {
     "brand": "PAIR—LANE",
     "sub": "P2P / 1:N / WEBRTC"

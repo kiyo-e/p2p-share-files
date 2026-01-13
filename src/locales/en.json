@@ -2,6 +2,7 @@
   "lang": "en",
   "langName": "English",
   "title": "PAIRLANE",
+  "description": "Transfer files directly between devices via WebRTC. No server upload, peer-to-peer only.",
   "header": {
     "brand": "PAIR—LANE",
     "sub": "P2P / 1:N / WEBRTC"
